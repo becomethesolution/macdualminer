@@ -33,13 +33,28 @@ final class BenchmarkStore {
 
     init(url: URL = AppPaths.benchmarksFile) {
         self.url = url
-        if let data = try? Data(contentsOf: url) {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            if let raw = try? decoder.decode([String: BenchmarkResult].self, from: data) {
-                for (key, value) in raw { if let pair = EngineAlgo(key: key) { results[pair] = value } }
+        if let data = try? Data(contentsOf: url) { results = Self.decode(data) }
+    }
+
+    private struct StoredFile: Codable {
+        var version: Int
+        var results: [String: BenchmarkResult]
+    }
+
+    /// Version 2 files are taken as they are. Older files (a bare dictionary, 0.2.0–0.3.3) may hold live
+    /// readings taken while CPU and GPU mined together, so only their dedicated benchmarks are kept.
+    nonisolated static func decode(_ data: Data) -> [EngineAlgo: BenchmarkResult] {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        var out: [EngineAlgo: BenchmarkResult] = [:]
+        if let file = try? decoder.decode(StoredFile.self, from: data), file.version >= 2 {
+            for (key, value) in file.results { if let pair = EngineAlgo(key: key) { out[pair] = value } }
+        } else if let legacy = try? decoder.decode([String: BenchmarkResult].self, from: data) {
+            for (key, value) in legacy where !value.fromLiveMining {
+                if let pair = EngineAlgo(key: key) { out[pair] = value }
             }
         }
+        return out
     }
 
     func record(_ result: BenchmarkResult, for engine: EngineAlgo) {
@@ -64,7 +79,7 @@ final class BenchmarkStore {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
         let raw = Dictionary(uniqueKeysWithValues: results.map { ($0.key.key, $0.value) })
-        guard let data = try? encoder.encode(raw) else { return }
+        guard let data = try? encoder.encode(StoredFile(version: 2, results: raw)) else { return }
         try? data.write(to: url, options: .atomic)
     }
 }

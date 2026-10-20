@@ -323,8 +323,11 @@ final class MiningCoordinator {
     }
 
     /// Engines that have been mining steadily for 5+ minutes teach the profit check their real hashrate.
+    /// Only learns from an engine that is mining ALONE: with CPU and GPU mining together they share power and
+    /// memory bandwidth (on an M5 Max XMRig drops from ~8.9 to ~3–4 kH/s), and those slowed numbers must not
+    /// replace the solo benchmark the profit check relies on.
     private func recordLiveBenchmarks() {
-        guard benchmarkOption == nil else { return }
+        guard benchmarkOption == nil, engines.filter(\.isMining).count == 1 else { return }
         let watts = allocatedWatts
         for e in engines {
             guard e.isMining, e.totalHashrate > 0, let job = e.job, let started = e.process.startedAt,
