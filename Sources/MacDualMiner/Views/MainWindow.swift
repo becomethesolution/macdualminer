@@ -2,24 +2,23 @@ import SwiftUI
 
 struct MainWindow: View {
     @Environment(MiningCoordinator.self) private var coordinator
-    @State private var tab: Tab = .dashboard
-
-    enum Tab: Hashable { case dashboard, profit, earnings, logs }
+    @Environment(UIState.self) private var uiState
 
     var body: some View {
-        TabView(selection: $tab) {
+        @Bindable var ui = uiState
+        TabView(selection: $ui.mainTab) {
             DashboardView()
                 .tabItem { Label("Dashboard", systemImage: "gauge.with.dots.needle.67percent") }
-                .tag(Tab.dashboard)
+                .tag(MainTab.dashboard)
             ProfitCheckView()
                 .tabItem { Label("Profit Check", systemImage: "chart.bar.xaxis") }
-                .tag(Tab.profit)
+                .tag(MainTab.profit)
             EarningsView()
                 .tabItem { Label("Earnings", systemImage: "dollarsign.circle") }
-                .tag(Tab.earnings)
+                .tag(MainTab.earnings)
             LogsView()
                 .tabItem { Label("Logs", systemImage: "text.alignleft") }
-                .tag(Tab.logs)
+                .tag(MainTab.logs)
         }
         .padding(.top, 4)
         .toolbar {

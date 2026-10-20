@@ -232,11 +232,11 @@ private struct EngineSettings: View {
 
 private struct RulesSettings: View {
     @Environment(MiningCoordinator.self) private var coordinator
-    @State private var loginError: String?
-    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @Environment(UIState.self) private var uiState
 
     var body: some View {
         @Bindable var store = coordinator.store
+        @Bindable var ui = uiState
         Form {
             Section("When to mine") {
                 Toggle("Pause on battery power", isOn: $store.settings.pauseOnBattery)
@@ -250,16 +250,16 @@ private struct RulesSettings: View {
             }
             Section("Startup") {
                 Toggle("Start mining when the app opens", isOn: $store.settings.startMiningOnLaunch)
-                Toggle("Open MacDualMiner at login", isOn: $launchAtLogin)
-                    .onChange(of: launchAtLogin) { _, enabled in
+                Toggle("Open MacDualMiner at login", isOn: $ui.launchAtLogin)
+                    .onChange(of: ui.launchAtLogin) { _, enabled in
                         do {
                             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-                            loginError = nil
+                            uiState.loginError = nil
                         } catch {
-                            loginError = "Couldn't change login item: \(error.localizedDescription). Move the app to /Applications first."
+                            uiState.loginError = "Couldn't change login item: \(error.localizedDescription). Move the app to /Applications first."
                         }
                     }
-                if let loginError {
+                if let loginError = ui.loginError {
                     Text(loginError).font(.caption).foregroundStyle(.orange)
                 }
             }

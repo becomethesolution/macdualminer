@@ -4,16 +4,16 @@ import SwiftUI
 /// the hashrate this Mac gets on that algorithm, and what it would earn net of fees and electricity.
 struct ProfitCheckView: View {
     @Environment(MiningCoordinator.self) private var coordinator
-    @State private var showIneligible = true
-    @State private var selection: RankedOption.ID?
+    @Environment(UIState.self) private var uiState
 
     var body: some View {
+        @Bindable var ui = uiState
         let ranked = coordinator.ranked
-        let rows = showIneligible ? ranked : ranked.filter(\.isEligible)
+        let rows = ui.showIneligibleCoins ? ranked : ranked.filter(\.isEligible)
         let best = ProfitPlanner.bestPlan(ranked, skipUnprofitable: false)
         VStack(alignment: .leading, spacing: 12) {
             summary(best: best)
-            Table(rows, selection: $selection) {
+            Table(rows, selection: $ui.profitSelection) {
                 TableColumn("Coin") { r in
                     VStack(alignment: .leading, spacing: 1) {
                         HStack(spacing: 4) {
@@ -113,7 +113,7 @@ struct ProfitCheckView: View {
                 if let progress = coordinator.benchmarkProgress {
                     ProgressView(value: progress).frame(width: 200)
                 }
-                Toggle("Show coins that aren't ready", isOn: $showIneligible).toggleStyle(.checkbox).font(.caption)
+                Toggle("Show coins that aren't ready", isOn: Binding(get: { uiState.showIneligibleCoins }, set: { uiState.showIneligibleCoins = $0 })).toggleStyle(.checkbox).font(.caption)
             }
         }
         .padding(12)

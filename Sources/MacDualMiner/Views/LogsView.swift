@@ -3,14 +3,15 @@ import AppKit
 
 struct LogsView: View {
     @Environment(MiningCoordinator.self) private var coordinator
-    @State private var engine: EngineKind = .xmrig
+    @Environment(UIState.self) private var uiState
 
-    private var process: MinerProcess { coordinator.engine(engine).process }
+    private var process: MinerProcess { coordinator.engine(uiState.logsEngine).process }
 
     var body: some View {
+        @Bindable var ui = uiState
         VStack(spacing: 8) {
             HStack {
-                Picker("Engine", selection: $engine) {
+                Picker("Engine", selection: $ui.logsEngine) {
                     ForEach(EngineKind.allCases) { Text($0.displayName).tag($0) }
                 }
                 .pickerStyle(.segmented)

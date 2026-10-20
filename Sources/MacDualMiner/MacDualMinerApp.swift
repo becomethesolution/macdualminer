@@ -9,6 +9,7 @@ struct MacDualMinerApp: App {
         Window("MacDualMiner", id: "dashboard") {
             MainWindow()
                 .environment(appDelegate.coordinator)
+                .environment(appDelegate.ui)
                 .frame(minWidth: 760, minHeight: 560)
         }
         .defaultSize(width: 900, height: 680)
@@ -16,6 +17,7 @@ struct MacDualMinerApp: App {
         MenuBarExtra {
             MenuBarContent()
                 .environment(appDelegate.coordinator)
+                .environment(appDelegate.ui)
         } label: {
             MenuBarLabel(coordinator: appDelegate.coordinator)
         }
@@ -24,6 +26,7 @@ struct MacDualMinerApp: App {
         Settings {
             SettingsView()
                 .environment(appDelegate.coordinator)
+                .environment(appDelegate.ui)
                 .frame(width: 640, height: 580)
         }
     }
@@ -31,6 +34,7 @@ struct MacDualMinerApp: App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    let ui = UIState()
     lazy var coordinator: MiningCoordinator = {
         EngineReaper.killLeftoversFromLastSession()
         return MiningCoordinator(store: SettingsStore())

@@ -25,6 +25,14 @@ jobs:
       - name: Unit tests
         run: swift test
 
+      - name: Compile with Command Line Tools only (no Xcode)
+        run: |
+          if [ -d /Library/Developer/CommandLineTools/usr/bin ]; then
+            DEVELOPER_DIR=/Library/Developer/CommandLineTools swift build -c release --product MacDualMiner --scratch-path .build-clt
+          else
+            echo "Command Line Tools not installed on this runner – skipped"
+          fi
+
       - name: Build app
         run: scripts/build-app.sh
 
