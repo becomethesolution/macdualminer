@@ -37,7 +37,8 @@ XMRIG_TGZ="xmrig-$XMRIG_VERSION-macos-arm64.tar.gz"
 XMRIG_URL="https://github.com/xmrig/xmrig/releases/download/v$XMRIG_VERSION"
 [[ -f "$CACHE/$XMRIG_TGZ" ]] || curl -fL --retry 3 -o "$CACHE/$XMRIG_TGZ" "$XMRIG_URL/$XMRIG_TGZ"
 curl -fsSL --retry 3 -o "$CACHE/xmrig-SHA256SUMS-$XMRIG_VERSION" "$XMRIG_URL/SHA256SUMS"
-EXPECTED="$(grep " $XMRIG_TGZ\$" "$CACHE/xmrig-SHA256SUMS-$XMRIG_VERSION" | awk '{print $1}' || true)"
+# Lines look like "<sha256> *<file>" (the * marks binary mode) or "<sha256>  <file>".
+EXPECTED="$(awk -v f="$XMRIG_TGZ" '{ n = $2; sub(/^\*/, "", n); if (n == f) print $1 }' "$CACHE/xmrig-SHA256SUMS-$XMRIG_VERSION")"
 [[ -n "$EXPECTED" ]] || die "no checksum for $XMRIG_TGZ in XMRig's SHA256SUMS"
 ACTUAL="$(shasum -a 256 "$CACHE/$XMRIG_TGZ" | awk '{print $1}')"
 [[ "$EXPECTED" == "$ACTUAL" ]] || { rm -f "$CACHE/$XMRIG_TGZ"; die "XMRig checksum mismatch (expected $EXPECTED, got $ACTUAL)"; }
