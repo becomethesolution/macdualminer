@@ -74,6 +74,11 @@ struct MinerSettings: Codable, Equatable {
     var poolChoice: [String: String] = [:]
     var customPools: [String: CustomPool] = [:]
 
+    // MARK: App
+    var checkForUpdates = true
+    /// NiceHash-style dark interface; off = follow the system appearance.
+    var darkInterface = true
+
     // MARK: Switching
     var switchingMode: SwitchingMode = .auto
     var manualCPUOption = "xmrig:XMR"

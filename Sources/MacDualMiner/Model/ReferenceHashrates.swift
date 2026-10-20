@@ -51,8 +51,10 @@ enum ReferenceHashrates {
     ]
 
     /// Best match for this Mac's chip, longest name first so "M5 Max" doesn't match a plain "M5".
-    static func lookup(chip: String, engine: EngineKind) -> ReferenceHashrate? {
-        all.filter { $0.engine == engine && chip.localizedCaseInsensitiveContains($0.chip) }
+    /// References are all for each engine's main algorithm (RandomX for XMRig).
+    static func lookup(chip: String, engine: EngineKind, algorithm: Algorithm? = nil) -> ReferenceHashrate? {
+        if let algorithm, algorithm != engine.primaryAlgorithm { return nil }
+        return all.filter { $0.engine == engine && chip.localizedCaseInsensitiveContains($0.chip) }
             .max { $0.chip.count < $1.chip.count }
     }
 }

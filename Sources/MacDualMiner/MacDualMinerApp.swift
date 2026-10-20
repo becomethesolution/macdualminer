@@ -10,14 +10,16 @@ struct MacDualMinerApp: App {
             MainWindow()
                 .environment(appDelegate.coordinator)
                 .environment(appDelegate.ui)
-                .frame(minWidth: 760, minHeight: 560)
+                .environment(appDelegate.updates)
+                .frame(minWidth: 1040, minHeight: 680)
         }
-        .defaultSize(width: 900, height: 680)
+        .defaultSize(width: 1180, height: 860)
 
         MenuBarExtra {
             MenuBarContent()
                 .environment(appDelegate.coordinator)
                 .environment(appDelegate.ui)
+                .environment(appDelegate.updates)
         } label: {
             MenuBarLabel(coordinator: appDelegate.coordinator)
         }
@@ -27,7 +29,9 @@ struct MacDualMinerApp: App {
             SettingsView()
                 .environment(appDelegate.coordinator)
                 .environment(appDelegate.ui)
-                .frame(width: 640, height: 580)
+                .environment(appDelegate.updates)
+                .frame(width: 680, height: 620)
+                .preferredColorScheme(appDelegate.coordinator.settings.darkInterface ? .dark : nil)
         }
     }
 }
@@ -35,10 +39,16 @@ struct MacDualMinerApp: App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let ui = UIState()
+    let updates = UpdateService()
     lazy var coordinator: MiningCoordinator = {
         EngineReaper.killLeftoversFromLastSession()
         return MiningCoordinator(store: SettingsStore())
     }()
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        let coordinator = self.coordinator
+        updates.start { coordinator.settings.checkForUpdates }
+    }
 
     /// Keep mining from the menu bar when the window is closed.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }

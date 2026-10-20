@@ -16,6 +16,7 @@ final class MiningCoordinator {
     let profit = ProfitDataService()      // WhatToMine data for every coin
     let benchmarks = BenchmarkStore()
     let uselethInstaller = UselethInstaller()
+    let history = EarningsHistory()
     let hardware = HardwareInfo.current
 
     private(set) var wantsMining = false
@@ -34,7 +35,7 @@ final class MiningCoordinator {
     @ObservationIgnored private var benchmarkTask: Task<Void, Never>?
     @ObservationIgnored private var benchmarkOption: MiningOption?
     @ObservationIgnored private var sleepActivity: NSObjectProtocol?
-    @ObservationIgnored private var lastLiveRecord: [EngineKind: Date] = [:]
+    @ObservationIgnored private var lastLiveRecord: [EngineAlgo: Date] = [:]
 
     var settings: MinerSettings { store.settings }
     var engines: [any MiningEngine] { [xmrig, kawpow, ethminer, useleth] }
@@ -77,6 +78,7 @@ final class MiningCoordinator {
         loop?.cancel()
         benchmarkTask?.cancel()
         engines.forEach { $0.stop() }
+        history.save()
         updateSleepAssertion(active: false)
     }
 
@@ -106,8 +108,8 @@ final class MiningCoordinator {
     var ranked: [RankedOption] {
         var markets: [String: CoinMarket] = [:]
         for coin in CoinCatalog.coins { if let m = profit.market(for: coin) { markets[coin.tag] = m } }
-        var estimates: [EngineKind: HashrateEstimate] = [:]
-        for kind in EngineKind.allCases { estimates[kind] = estimate(for: kind) }
+        var estimates: [EngineAlgo: HashrateEstimate] = [:]
+        for pair in EngineAlgo.all { estimates[pair] = estimate(for: pair) }
         let installed = Set(EngineKind.allCases.filter { FileManager.default.isExecutableFile(atPath: $0.executable.path) })
         return ProfitPlanner.rank(ProfitInputs(settings: settings, markets: markets, btcUSD: profit.btcUSD,
                                                estimates: estimates, installed: installed))
@@ -116,21 +118,22 @@ final class MiningCoordinator {
     var bestPlan: MiningPlan { ProfitPlanner.bestPlan(ranked, skipUnprofitable: false) }
 
     /// Live reading > this Mac's benchmark > cryptominingonmacs.com reference for this chip.
-    func estimate(for kind: EngineKind) -> HashrateEstimate {
+    func estimate(for pair: EngineAlgo) -> HashrateEstimate {
+        let kind = pair.engine
         let e = engine(kind)
-        if e.isMining, e.totalHashrate > 0, let started = e.process.startedAt, Date().timeIntervalSince(started) > 90 {
+        if e.isMining, e.job?.option.engineAlgo == pair, e.totalHashrate > 0, let started = e.process.startedAt, Date().timeIntervalSince(started) > 90 {
             let w = allocatedWatts[kind]
             return HashrateEstimate(cpu: e.hashrate(for: .cpu), gpu: e.hashrate(for: .gpu),
                                     watts: settings.powerSource == .manual ? nil : w, source: .live, note: nil)
         }
         // Benchmarks are stored at full power (level 10); scale them to the current power levels.
         let cpuF = settings.cpuPowerFactor, gpuF = settings.gpuPowerFactor
-        if let b = benchmarks.results[kind] {
+        if let b = benchmarks.results[pair] {
             let w = b.watts.map { scaledWatts($0, kind: kind, cpu: cpuF, gpu: gpuF) }
             return HashrateEstimate(cpu: b.cpuHashrate * cpuF, gpu: b.gpuHashrate * gpuF, watts: w, source: .benchmark,
                                     note: "Measured \(b.date.formatted(date: .abbreviated, time: .shortened)) on \(b.coinTag), scaled to power level")
         }
-        if let r = ReferenceHashrates.lookup(chip: hardware.chipName, engine: kind) {
+        if let r = ReferenceHashrates.lookup(chip: hardware.chipName, engine: kind, algorithm: pair.algorithm) {
             let cpu = kind.devices.contains(.cpu) ? r.hashrate : 0
             let gpu = kind == .useleth ? (r.gpuHashrate ?? 0) : (kind.devices.contains(.gpu) ? r.hashrate : 0)
             return HashrateEstimate(cpu: cpu * cpuF, gpu: gpu * gpuF, watts: nil, source: .reference,
@@ -181,6 +184,7 @@ final class MiningCoordinator {
         xmrig.process.dutyCycle = 1
 
         recordLiveBenchmarks()
+        recordHistory()
         updateSleepAssertion(active: s.preventSleep && engines.contains { $0.activeSignature != nil })
     }
 
@@ -311,15 +315,24 @@ final class MiningCoordinator {
         for e in engines {
             guard e.isMining, e.totalHashrate > 0, let job = e.job, let started = e.process.startedAt,
                   Date().timeIntervalSince(started) > 300 else { continue }
-            if let last = lastLiveRecord[e.kind], Date().timeIntervalSince(last) < 600 { continue }
-            lastLiveRecord[e.kind] = Date()
+            if let last = lastLiveRecord[job.option.engineAlgo], Date().timeIntervalSince(last) < 600 { continue }
+            lastLiveRecord[job.option.engineAlgo] = Date()
             let measuredWatts: Double? = settings.powerSource == .manual || system.idleBaselineWatts == nil ? nil : watts[e.kind]
             let cpuF = settings.cpuPowerFactor, gpuF = settings.gpuPowerFactor
             benchmarks.record(BenchmarkResult(cpuHashrate: e.hashrate(for: .cpu) / cpuF, gpuHashrate: e.hashrate(for: .gpu) / gpuF,
                                               watts: measuredWatts.map { $0 / max(0.1, scaledWatts(1, kind: e.kind, cpu: cpuF, gpu: gpuF)) },
                                               date: Date(), coinTag: job.option.coinTag,
-                                              fromLiveMining: true), for: e.kind)
+                                              fromLiveMining: true), for: job.option.engineAlgo)
         }
+    }
+
+    /// Feeds the Power vs Earnings chart (every 30 s, including idle periods so gaps show as zero).
+    private func recordHistory() {
+        let e = earnings
+        history.record(EarningsSample(date: Date(), watts: e.totalWatts,
+                                      grossPerDay: e.gross(.day), netPerDay: isMining ? e.net(.day) : 0,
+                                      cpuHashrate: runningEngine(on: .cpu)?.hashrate(for: .cpu) ?? 0,
+                                      gpuHashrate: runningEngine(on: .gpu)?.hashrate(for: .gpu) ?? 0))
     }
 
     // MARK: - Benchmark
@@ -329,8 +342,9 @@ final class MiningCoordinator {
         guard benchmarkTask == nil else { return }
         let rankedNow = ranked
         var queue: [MiningOption] = []
-        for kind in EngineKind.allCases where FileManager.default.isExecutableFile(atPath: kind.executable.path) {
-            if let best = rankedNow.first(where: { $0.option.engine == kind && settings.readinessProblem($0.option) == nil }) {
+        // One run per engine + algorithm pair (e.g. XMRig on RandomX and on GhostRider), using its best ready coin.
+        for pair in EngineAlgo.all where FileManager.default.isExecutableFile(atPath: pair.engine.executable.path) {
+            if let best = rankedNow.first(where: { $0.option.engineAlgo == pair && settings.readinessProblem($0.option) == nil }) {
                 queue.append(best.option)
             }
         }
@@ -391,7 +405,7 @@ final class MiningCoordinator {
         let cpuF = settings.cpuPowerFactor, gpuF = settings.gpuPowerFactor
         benchmarks.record(BenchmarkResult(cpuHashrate: avg(settle(cpu)) / cpuF, gpuHashrate: avg(settle(gpu)) / gpuF,
                                           watts: watts.isEmpty ? nil : avg(settle(watts)) / max(0.1, scaledWatts(1, kind: kind, cpu: cpuF, gpu: gpuF)),
-                                          date: Date(), coinTag: option.coinTag, fromLiveMining: false), for: kind)
+                                          date: Date(), coinTag: option.coinTag, fromLiveMining: false), for: option.engineAlgo)
         e.stop()
         try? await Task.sleep(for: .seconds(5)) // let power settle before the next engine
     }
@@ -416,6 +430,16 @@ final class MiningCoordinator {
                 watts = max(0, measured - baseline)
             }
             return estimates.mapValues { watts * $0 / total }
+        }
+    }
+
+    /// Two-word version for the dashboard tile.
+    var powerSourceShort: String {
+        switch settings.powerSource {
+        case .manual: return "Estimated"
+        case .measuredTotal: return system.systemWatts == nil ? "Estimated" : "Whole Mac"
+        case .measuredIncremental:
+            return system.systemWatts == nil || system.idleBaselineWatts == nil ? "Estimated" : "Measured above idle"
         }
     }
 

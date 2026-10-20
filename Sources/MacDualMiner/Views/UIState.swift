@@ -16,4 +16,7 @@ final class UIState {
     var profitSelection: String?
     var loginError: String?
     var launchAtLogin = SMAppService.mainApp.status == .enabled
+    var chartHours: Double = 6
+    var chartSelection: Date?
+    var updateDismissed = false
 }

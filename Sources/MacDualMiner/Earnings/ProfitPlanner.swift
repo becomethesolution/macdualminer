@@ -28,7 +28,7 @@ struct BenchmarkResult: Codable, Equatable {
 @MainActor
 @Observable
 final class BenchmarkStore {
-    private(set) var results: [EngineKind: BenchmarkResult] = [:]
+    private(set) var results: [EngineAlgo: BenchmarkResult] = [:]
     @ObservationIgnored private let url: URL
 
     init(url: URL = AppPaths.benchmarksFile) {
@@ -37,12 +37,12 @@ final class BenchmarkStore {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             if let raw = try? decoder.decode([String: BenchmarkResult].self, from: data) {
-                for (key, value) in raw { if let kind = EngineKind(rawValue: key) { results[kind] = value } }
+                for (key, value) in raw { if let pair = EngineAlgo(key: key) { results[pair] = value } }
             }
         }
     }
 
-    func record(_ result: BenchmarkResult, for engine: EngineKind) {
+    func record(_ result: BenchmarkResult, for engine: EngineAlgo) {
         // A dedicated benchmark always wins; live readings blend in slowly and never overwrite a fresh benchmark.
         if result.fromLiveMining, let existing = results[engine] {
             if !existing.fromLiveMining, Date().timeIntervalSince(existing.date) < 86_400 { return }
@@ -63,7 +63,7 @@ final class BenchmarkStore {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        let raw = Dictionary(uniqueKeysWithValues: results.map { ($0.key.rawValue, $0.value) })
+        let raw = Dictionary(uniqueKeysWithValues: results.map { ($0.key.key, $0.value) })
         guard let data = try? encoder.encode(raw) else { return }
         try? data.write(to: url, options: .atomic)
     }
@@ -144,7 +144,7 @@ struct ProfitInputs {
     var settings: MinerSettings
     var markets: [String: CoinMarket]          // keyed by coin tag
     var btcUSD: Double?
-    var estimates: [EngineKind: HashrateEstimate]
+    var estimates: [EngineAlgo: HashrateEstimate]
     var installed: Set<EngineKind>
 }
 
@@ -154,7 +154,7 @@ enum ProfitPlanner {
         let s = input.settings
         let rows: [RankedOption] = MiningOption.all.compactMap { option in
             guard let coin = option.coin else { return nil }
-            let estimate = input.estimates[option.engine] ?? HashrateEstimate(cpu: 0, gpu: 0, watts: nil, source: .none, note: nil)
+            let estimate = input.estimates[option.engineAlgo] ?? HashrateEstimate(cpu: 0, gpu: 0, watts: nil, source: .none, note: nil)
             let market = input.markets[coin.tag]
             let pool = s.pool(for: coin)
             let poolFee = pool?.feePercent ?? 1

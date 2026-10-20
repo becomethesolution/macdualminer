@@ -154,10 +154,10 @@ final class ProfitTests: XCTestCase {
                       "QUAI": market("QUAI", "KawPow", nethash: 1e13, reward: 10, blockTime: 10, btc: 0.0001),
                       "ETHW": market("ETHW", "Ethash", nethash: 2.7e12, reward: 2, blockTime: 13, btc: 0.000003, vol: 0.1)],
             btcUSD: 80_000,
-            estimates: [.xmrig: HashrateEstimate(cpu: 9_000, gpu: 0, watts: 50, source: .benchmark, note: nil),
-                        .kawpow: HashrateEstimate(cpu: 0, gpu: 14e6, watts: 60, source: .reference, note: nil),
-                        .ethminer: HashrateEstimate(cpu: 0, gpu: 41e6, watts: 60, source: .reference, note: nil),
-                        .useleth: HashrateEstimate(cpu: 8e6, gpu: 33e6, watts: 110, source: .reference, note: nil)],
+            estimates: [EngineAlgo(.xmrig, .randomX): HashrateEstimate(cpu: 9_000, gpu: 0, watts: 50, source: .benchmark, note: nil),
+                        EngineAlgo(.kawpow, .kawPow): HashrateEstimate(cpu: 0, gpu: 14e6, watts: 60, source: .reference, note: nil),
+                        EngineAlgo(.ethminer, .ethash): HashrateEstimate(cpu: 0, gpu: 41e6, watts: 60, source: .reference, note: nil),
+                        EngineAlgo(.useleth, .ethash): HashrateEstimate(cpu: 8e6, gpu: 33e6, watts: 110, source: .reference, note: nil)],
             installed: Set(EngineKind.allCases))
     }
 
@@ -219,5 +219,66 @@ final class MinerProcessTests: XCTestCase {
         XCTAssertEqual(p.dutyCycle, 1)
         p.dutyCycle = 0
         XCTAssertEqual(p.dutyCycle, 0.1)
+    }
+}
+
+final class UpdateAndHistoryTests: XCTestCase {
+    func testVersionComparison() {
+        XCTAssertLessThan(AppVersion("0.2.1")!, AppVersion("0.3.0")!)
+        XCTAssertLessThan(AppVersion("0.2.9")!, AppVersion("0.2.10")!)
+        XCTAssertEqual(AppVersion("v1.0")!, AppVersion("1.0.0")!)
+        XCTAssertFalse(AppVersion("0.3.0")! < AppVersion("0.3.0")!)
+        XCTAssertNil(AppVersion("beta"))
+    }
+
+    func testReleaseParsing() {
+        let json = #"{"tag_name":"v0.3.0","name":"MacDualMiner v0.3.0","html_url":"https://github.com/becomethesolution/macdualminer/releases/tag/v0.3.0","body":"notes","published_at":"2026-10-20T20:00:00Z","assets":[{"name":"MacDualMiner-0.3.0.zip","browser_download_url":"https://github.com/x/y/releases/download/v0.3.0/MacDualMiner-0.3.0.zip"}]}"#
+        let info = ReleaseInfo.parse(Data(json.utf8))
+        XCTAssertEqual(info?.version, "0.3.0")
+        XCTAssertEqual(info?.zipURL?.lastPathComponent, "MacDualMiner-0.3.0.zip")
+        XCTAssertNotNil(info?.publishedAt)
+    }
+
+    @MainActor func testHistoryRateLimitsAndTrims() {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("history-\(UUID().uuidString).json")
+        let h = EarningsHistory(url: url, interval: 30, retention: 3600)
+        let t0 = Date()
+        h.record(EarningsSample(date: t0, watts: 100, grossPerDay: 1, netPerDay: 0.5, cpuHashrate: 1, gpuHashrate: 1))
+        h.record(EarningsSample(date: t0.addingTimeInterval(10), watts: 100, grossPerDay: 1, netPerDay: 0.5, cpuHashrate: 1, gpuHashrate: 1))
+        XCTAssertEqual(h.samples.count, 1)              // 10 s later: skipped
+        h.record(EarningsSample(date: t0.addingTimeInterval(4000), watts: 50, grossPerDay: 2, netPerDay: 1, cpuHashrate: 1, gpuHashrate: 1))
+        XCTAssertEqual(h.samples.count, 1)              // first one fell out of the 1 h window
+        XCTAssertEqual(h.samples.first?.watts, 50)
+        let reloaded = EarningsHistory(url: url, interval: 30, retention: 24 * 3600)
+        XCTAssertFalse(reloaded.samples.isEmpty)        // persisted to disk
+    }
+
+    func testEngineAlgoKeysAndLegacyBenchmarks() {
+        XCTAssertEqual(EngineAlgo(key: "xmrig:GhostRider"), EngineAlgo(.xmrig, .ghostRider))
+        XCTAssertEqual(EngineAlgo(key: "xmrig"), EngineAlgo(.xmrig, .randomX))   // 0.2.x benchmark files
+        XCTAssertEqual(MiningOption(engine: .xmrig, coinTag: "RTM").engineAlgo, EngineAlgo(.xmrig, .ghostRider))
+        XCTAssertTrue(EngineAlgo.all.contains(EngineAlgo(.xmrig, .ghostRider)))
+    }
+
+    func testGhostRiderConfig() {
+        var s = MinerSettings()
+        s.cpuPowerLevel = 5
+        s.wallets["RTM"] = "RTMwallet"
+        s.poolChoice["RTM"] = "custom"
+        s.customPools["RTM"] = CustomPool(address: "rtm.example.com:4444", tls: false, feePercent: 1, userTemplate: "{wallet}.{worker}")
+        let job = s.job(for: MiningOption(engine: .xmrig, coinTag: "RTM"))!
+        let hw = HardwareInfo(chipName: "Apple M5 Max", totalCores: 18, superCores: 6, performanceCores: 12, gpuName: "M5 Max", memoryGB: 128)
+        let config = XMRigController.makeConfig(job: job, settings: s, hardware: hw, port: 1, token: "t")
+        let pool = (config["pools"] as? [[String: Any]])?.first
+        XCTAssertEqual(pool?["algo"] as? String, "gr")
+        XCTAssertEqual(pool?["user"] as? String, "RTMwallet.m5max")
+        XCTAssertEqual((config["cpu"] as? [String: Any])?["max-threads-hint"] as? Int, 50)
+    }
+
+    func testMachineDetailLine() {
+        let hw = HardwareInfo(chipName: "Apple M5 Max", totalCores: 18, superCores: 6, performanceCores: 12, gpuName: "Apple M5 Max",
+                              memoryGB: 128, computerName: "Ram's MacBook Pro", modelName: "MacBook Pro (16-inch, 2026)",
+                              modelIdentifier: "Mac17,6", gpuCores: 40)
+        XCTAssertEqual(hw.detailLine, "MacBook Pro (16-inch, 2026) (Mac17,6) · Apple M5 Max · 18 CPU cores (6 + 12) · 40-core GPU · 128 GB")
     }
 }

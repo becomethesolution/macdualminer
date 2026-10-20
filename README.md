@@ -4,7 +4,7 @@ A lightweight native macOS app that mines on **both halves of an Apple Silicon c
 
 | Engine | Part of the chip | Algorithm | Coins in the profit check | How it ships |
 |---|---|---|---|---|
-| [XMRig](https://github.com/xmrig/xmrig) | CPU | RandomX | Monero, Zephyr, QRL, Epic Cash, Etica | Bundled (official release, SHA-256 verified) |
+| [XMRig](https://github.com/xmrig/xmrig) | CPU | RandomX, GhostRider | Monero, Zephyr, QRL, Epic Cash, Etica, Raptoreum | Bundled (official release, SHA-256 verified) |
 | [kawpow-metal](https://github.com/imperatormk/kawpow-metal) | GPU (Metal) | KawPow | Ravencoin, Quai, Neoxa, Neurai, Kerrigan | Bundled (built from a pinned commit) |
 | [ethminer-m1](https://github.com/gyf304/ethminer-m1) | GPU (OpenCL) | Ethash | EthereumPoW, OctaSpace, QuarkChain | Bundled (release binary, pinned SHA-256) |
 | [UselethMiner](https://github.com/Chainfire/UselethMiner) | CPU + GPU | Ethash | EthereumPoW | Optional in-app download (closed source, 1% fee) |
@@ -17,6 +17,9 @@ Engine choices and reference hashrates come from the Mac tests on [cryptominingo
 
 ## Features
 
+- **Mining-dashboard interface:** a sidebar, a large Start/Stop button with live profitability, and one row per device (CPU and GPU) showing coin, algorithm, engine, hashrate, watts and shares, with an on/off switch and power slider for each. It also shows your Mac's own name, model and chip details, and has a dark look by default (switchable in Settings › General).
+- **Power vs Earnings chart:** power draw against gross and net $/day over the last 1, 6 or 24 hours. A point is recorded every 30 seconds and the history is kept between launches; hover to read exact values.
+- **Update check:** looks for new GitHub releases at launch and every 6 hours. *Install & Restart* downloads the release, checks it's the right app, version and code signature, swaps it in and relaunches.
 - **Profit Check tab.** Every coin the engines can mine, with:
   - its **algorithm**
   - the **engine** and part of the chip it uses

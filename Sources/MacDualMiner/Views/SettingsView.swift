@@ -4,6 +4,7 @@ import ServiceManagement
 struct SettingsView: View {
     var body: some View {
         TabView {
+            GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
             CoinsSettings().tabItem { Label("Coins & Wallets", systemImage: "bitcoinsign.circle") }
             SwitchingSettings().tabItem { Label("Switching", systemImage: "arrow.triangle.2.circlepath") }
             EngineSettings().tabItem { Label("Engines", systemImage: "cpu") }
@@ -11,6 +12,51 @@ struct SettingsView: View {
             EarningsSettings().tabItem { Label("Earnings", systemImage: "dollarsign.circle") }
         }
         .padding(8)
+    }
+}
+
+private struct GeneralSettings: View {
+    @Environment(MiningCoordinator.self) private var coordinator
+    @Environment(UpdateService.self) private var updates
+
+    var body: some View {
+        @Bindable var store = coordinator.store
+        Form {
+            Section("Appearance") {
+                Toggle("Dark mining-dashboard look (off = follow macOS)", isOn: $store.settings.darkInterface)
+            }
+            Section("Updates") {
+                Toggle("Check GitHub for new versions automatically", isOn: $store.settings.checkForUpdates)
+                HStack {
+                    Text("You have MacDualMiner \(updates.currentVersion)")
+                    Spacer()
+                    Button("Check now") { Task { await updates.check() } }
+                        .disabled(updates.state == .checking)
+                }
+                switch updates.state {
+                case .idle: EmptyView()
+                case .checking: Text("Checking…").font(.caption).foregroundStyle(.secondary)
+                case .upToDate: Label("You're up to date", systemImage: "checkmark.circle").font(.caption).foregroundStyle(Theme.profit)
+                case .available(let info):
+                    HStack {
+                        Label("Version \(info.version) is available", systemImage: "arrow.down.circle.fill").foregroundStyle(Theme.accent)
+                        Spacer()
+                        Button("Release notes") { updates.openReleasePage() }
+                        Button("Install & Restart") { Task { await updates.installUpdate { coordinator.shutdown() } } }
+                            .buttonStyle(.borderedProminent)
+                    }
+                case .downloading(let what): Text(what).font(.caption)
+                case .failed(let why): Text(why).font(.caption).foregroundStyle(Theme.loss)
+                }
+                if let checked = updates.lastChecked {
+                    Text("Last checked \(checked.formatted(date: .abbreviated, time: .shortened)) · github.com/\(UpdateService.repository)")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Text("Updates are downloaded from this app's GitHub releases, checked for the right app, version and code signature, then swapped in and the app restarts.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
     }
 }
 
@@ -39,7 +85,7 @@ private struct CoinsSettings: View {
     }
 
     private func engines(for algorithm: Algorithm) -> String {
-        EngineKind.allCases.filter { $0.algorithm == algorithm }
+        EngineKind.allCases.filter { $0.algorithms.contains(algorithm) }
             .map { "\($0.displayName) (\($0.deviceLabel))" }.joined(separator: ", ")
     }
 }
@@ -167,7 +213,7 @@ private struct EngineSettings: View {
                     let installed = FileManager.default.isExecutableFile(atPath: kind.executable.path)
                     HStack {
                         VStack(alignment: .leading) {
-                            Text("\(kind.displayName) – \(kind.algorithm.rawValue) on \(kind.deviceLabel) (\(kind.backend))")
+                            Text("\(kind.displayName) – \(kind.algorithms.map(\.rawValue).joined(separator: ", ")) on \(kind.deviceLabel) (\(kind.backend))")
                             Text(verbatim: engineNote(kind) + (installed ? "" : " · not installed"))
                                 .font(.caption).foregroundStyle(.secondary)
                         }

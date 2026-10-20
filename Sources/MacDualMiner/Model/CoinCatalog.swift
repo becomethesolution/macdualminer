@@ -11,7 +11,36 @@ enum Algorithm: String, Codable, CaseIterable, Identifiable {
     case randomX = "RandomX"
     case kawPow = "KawPow"
     case ethash = "Ethash"
+    case ghostRider = "GhostRider"
     var id: String { rawValue }
+}
+
+/// One engine running one algorithm – hashrates are measured and estimated per pair.
+struct EngineAlgo: Hashable, Codable {
+    var engine: EngineKind
+    var algorithm: Algorithm
+    var key: String { "\(engine.rawValue):\(algorithm.rawValue)" }
+
+    init(_ engine: EngineKind, _ algorithm: Algorithm) {
+        self.engine = engine
+        self.algorithm = algorithm
+    }
+
+    /// Parses "xmrig:RandomX"; a bare "xmrig" (0.2.x benchmark files) means the engine's main algorithm.
+    init?(key: String) {
+        let parts = key.split(separator: ":", maxSplits: 1).map(String.init)
+        guard let engine = EngineKind(rawValue: parts[0]) else { return nil }
+        if parts.count == 2 {
+            guard let algorithm = Algorithm(rawValue: parts[1]) else { return nil }
+            self.init(engine, algorithm)
+        } else {
+            self.init(engine, engine.primaryAlgorithm)
+        }
+    }
+
+    static var all: [EngineAlgo] {
+        EngineKind.allCases.flatMap { e in e.algorithms.map { EngineAlgo(e, $0) } }
+    }
 }
 
 /// A mining program bundled with the app.
@@ -28,13 +57,15 @@ enum EngineKind: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    var algorithm: Algorithm {
+    var algorithms: [Algorithm] {
         switch self {
-        case .xmrig: return .randomX
-        case .kawpow: return .kawPow
-        case .ethminer, .useleth: return .ethash
+        case .xmrig: return [.randomX, .ghostRider]
+        case .kawpow: return [.kawPow]
+        case .ethminer, .useleth: return [.ethash]
         }
     }
+
+    var primaryAlgorithm: Algorithm { algorithms[0] }
 
     /// Which parts of the chip the engine occupies while running.
     var devices: Set<Device> {
@@ -132,6 +163,11 @@ enum CoinCatalog {
         CoinSpec(tag: "ETI", name: "Etica", algorithm: .randomX, engines: [.xmrig], pools: [],
                  walletHint: "0x… address", note: "Add an Etica pool under Coins & Wallets", experimental: true, xmrigAlgo: "rx/0"),
 
+        // MARK: CPU – GhostRider via XMRig
+        CoinSpec(tag: "RTM", name: "Raptoreum", algorithm: .ghostRider, engines: [.xmrig], pools: [],
+                 walletHint: "R… address", note: "Add a Raptoreum pool (e.g. flockpool) under Coins & Wallets – very thin trading volume",
+                 experimental: true, xmrigAlgo: "gr"),
+
         // MARK: GPU – KawPow via kawpow-metal
         CoinSpec(tag: "RVN", name: "Ravencoin", algorithm: .kawPow, engines: [.kawpow],
                  pools: [PoolPreset(id: "2miners", name: "2Miners", address: "rvn.2miners.com:6060", tls: false, feePercent: 1, userTemplate: "{wallet}.{worker}")],
@@ -188,6 +224,7 @@ struct MiningOption: Hashable, Identifiable, Codable {
     }
 
     var coin: CoinSpec? { CoinCatalog.coin(coinTag) }
+    var engineAlgo: EngineAlgo { EngineAlgo(engine, coin?.algorithm ?? engine.primaryAlgorithm) }
     var label: String { "\(coin?.name ?? coinTag) (\(coinTag)) · \(engine.displayName)" }
 
     static var all: [MiningOption] {

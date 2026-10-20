@@ -86,6 +86,8 @@ final class XMRigController: MiningEngine {
         ]
         // One entry per thread; -1 = no affinity (macOS doesn't support pinning anyway).
         cpu["rx"] = Array(repeating: -1, count: s.cpuThreads(totalCores: hardware.totalCores))
+        // GhostRider auto-configures its own profile; the hint caps it at the CPU power level.
+        cpu["max-threads-hint"] = max(10, Int((s.cpuPowerFactor * 100).rounded()))
 
         var pool: [String: Any] = [
             "url": job.poolAddress,

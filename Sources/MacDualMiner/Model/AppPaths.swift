@@ -1,5 +1,7 @@
 import Foundation
 import Metal
+import IOKit
+import SystemConfiguration
 
 enum AppPaths {
     static let appName = "MacDualMiner"
@@ -50,6 +52,25 @@ struct HardwareInfo {
     let performanceCores: Int
     let gpuName: String
     let memoryGB: Int
+    /// "Ram's MacBook Pro" – the name set in System Settings › General › Sharing.
+    var computerName: String = ""
+    /// Marketing name, e.g. "MacBook Pro (16-inch, 2026)".
+    var modelName: String = ""
+    /// e.g. "Mac17,6".
+    var modelIdentifier: String = ""
+    var gpuCores: Int? = nil
+
+    /// "MacBook Pro (16-inch, 2026) · Apple M5 Max · 18 CPU cores (6 + 12) · 40-core GPU · 128 GB"
+    var detailLine: String {
+        var parts: [String] = []
+        let model = modelName.isEmpty ? modelIdentifier : modelName
+        if !model.isEmpty { parts.append(modelIdentifier.isEmpty || model == modelIdentifier ? model : "\(model) (\(modelIdentifier))") }
+        parts.append(chipName)
+        parts.append(performanceCores > 0 ? "\(totalCores) CPU cores (\(superCores) + \(performanceCores))" : "\(totalCores) CPU cores")
+        parts.append(gpuCores.map { "\($0)-core GPU" } ?? gpuName)
+        parts.append("\(memoryGB) GB")
+        return parts.joined(separator: " · ")
+    }
 
     static let current: HardwareInfo = {
         let total = sysctlInt("hw.physicalcpu") ?? ProcessInfo.processInfo.processorCount
@@ -63,7 +84,11 @@ struct HardwareInfo {
             superCores: level0,
             performanceCores: level1,
             gpuName: MTLCreateSystemDefaultDevice()?.name ?? "Unknown GPU",
-            memoryGB: memory
+            memoryGB: memory,
+            computerName: (SCDynamicStoreCopyComputerName(nil, nil) as String?) ?? ProcessInfo.processInfo.hostName,
+            modelName: IORegistryInfo.productName() ?? "",
+            modelIdentifier: sysctlString("hw.model") ?? "",
+            gpuCores: IORegistryInfo.gpuCoreCount()
         )
     }()
 
@@ -80,5 +105,31 @@ struct HardwareInfo {
         var buffer = [CChar](repeating: 0, count: size)
         guard sysctlbyname(name, &buffer, &size, nil, 0) == 0 else { return nil }
         return String(cString: buffer)
+    }
+}
+
+/// Reads the Mac's marketing name and GPU core count from the I/O Registry (no admin rights needed).
+enum IORegistryInfo {
+    /// e.g. "MacBook Pro (16-inch, 2026)" from IODeviceTree:/product.
+    static func productName() -> String? {
+        let entry = IORegistryEntryFromPath(kIOMainPortDefault, "IODeviceTree:/product")
+        guard entry != 0 else { return nil }
+        defer { IOObjectRelease(entry) }
+        guard let value = IORegistryEntryCreateCFProperty(entry, "product-name" as CFString, kCFAllocatorDefault, 0)?
+            .takeRetainedValue() else { return nil }
+        if let data = value as? Data {
+            let name = String(decoding: data.prefix { $0 != 0 }, as: UTF8.self).trimmingCharacters(in: .whitespaces)
+            return name.isEmpty ? nil : name
+        }
+        return value as? String
+    }
+
+    static func gpuCoreCount() -> Int? {
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AGXAccelerator"))
+        guard service != 0 else { return nil }
+        defer { IOObjectRelease(service) }
+        let value = IORegistryEntryCreateCFProperty(service, "gpu-core-count" as CFString, kCFAllocatorDefault, 0)?
+            .takeRetainedValue()
+        return (value as? NSNumber)?.intValue
     }
 }
