@@ -27,6 +27,7 @@ struct MainWindow: View {
         }
         .tint(Theme.accent)
         .preferredColorScheme(coordinator.settings.darkInterface ? .dark : nil)
+        .onChange(of: coordinator.settings.darkInterface) { _, dark in AppAppearance.apply(dark: dark) }
     }
 }
 

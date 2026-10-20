@@ -51,5 +51,6 @@ struct MenuBarContent: View {
         .padding(14)
         .frame(width: 340)
         .preferredColorScheme(coordinator.settings.darkInterface ? .dark : nil)
+        .onAppear { AppAppearance.apply(dark: coordinator.settings.darkInterface) }
     }
 }

@@ -48,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let coordinator = self.coordinator
         updates.start { coordinator.settings.checkForUpdates }
+        AppAppearance.apply(dark: coordinator.settings.darkInterface)
     }
 
     /// Keep mining from the menu bar when the window is closed.
@@ -112,5 +113,13 @@ enum EngineReaper {
     private static func save(_ pids: Set<Int32>) {
         let text = pids.map(String.init).joined(separator: "\n")
         try? text.write(to: file, atomically: true, encoding: .utf8)
+    }
+}
+
+/// SwiftUI's preferredColorScheme doesn't reach the menu bar window, so the dark look is also set app-wide.
+@MainActor
+enum AppAppearance {
+    static func apply(dark: Bool) {
+        NSApp.appearance = dark ? NSAppearance(named: .darkAqua) : nil
     }
 }
