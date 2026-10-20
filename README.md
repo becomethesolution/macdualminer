@@ -27,7 +27,15 @@ Real numbers from a 2026 MacBook Pro 16" with an M5 Max (18-core CPU, 40-core GP
 
 ![MacDualMiner profit check ranking coins by algorithm, engine and net USD per day on an M5 Max](docs/screenshots/macdualminer-profit-check-coins-algorithms-m5-max.webp)
 
-The XMRig hashrate in the Profit Check (2.7 kH/s) was measured while the GPU was also mining, which roughly halves CPU speed on the M5 Max. On its own, XMRig does about 8.9 kH/s.
+The XMRig hashrate in the Profit Check (2.7 kH/s) was measured while the GPU was also mining, which roughly halves CPU speed on the M5 Max. On its own, XMRig does about 8.9 kH/s. Since 0.3.4 the Profit Check only learns from an engine mining on its own, so it keeps the solo figure.
+
+### Settings
+
+| | |
+|---|---|
+| ![MacDualMiner General settings with the GitHub update check showing a new version available](docs/screenshots/macdualminer-settings-general-update-check.webp)<br>**General.** Dark NiceHash-like look, and an update check that installs new GitHub releases after verifying the app's signature. | ![MacDualMiner Switching settings: auto-switch to the most profitable coin, switch margin, minimum run time and liquidity filter](docs/screenshots/macdualminer-settings-switching-auto-profit-switch-rules.webp)<br>**Switching.** Auto-switch, recommend-only or manual, with a switch margin, minimum run time and a trading-volume filter. |
+| ![MacDualMiner Engines settings: XMRig, kawpow-metal, ethminer-m1 and UselethMiner with separate 1–10 CPU and GPU power ratings](docs/screenshots/macdualminer-settings-engines-xmrig-kawpow-ethminer-power-rating.webp)<br>**Engines.** Turn the CPU, GPU and each engine on or off, and set separate 1–10 power ratings. | ![MacDualMiner Earnings settings: electricity price per kWh and measured power over idle](docs/screenshots/macdualminer-settings-earnings-electricity-price-power.webp)<br>**Earnings.** Your electricity price and how power is measured (the Mac's own sensor, above idle). |
+| ![MacDualMiner Rules settings: pause on battery, pause under thermal pressure, mine only while away, keep awake](docs/screenshots/macdualminer-settings-rules-battery-thermal-idle.webp)<br>**Rules.** Pause on battery or under thermal pressure, mine only while you're away, start at login. | The **Coins & Wallets** tab, where you paste a wallet per coin or a Kryptex username, isn't shown because it holds real addresses. |
 
 ## Features
 
