@@ -3,24 +3,19 @@ import AppKit
 
 struct LogsView: View {
     @Environment(MiningCoordinator.self) private var coordinator
-    @State private var engine: Engine = .cpu
+    @State private var engine: EngineKind = .xmrig
 
-    enum Engine: String, CaseIterable, Identifiable {
-        case cpu = "CPU · XMRig", gpu = "GPU · kawpow-metal"
-        var id: String { rawValue }
-    }
-
-    private var process: MinerProcess { engine == .cpu ? coordinator.cpu.process : coordinator.gpu.process }
+    private var process: MinerProcess { coordinator.engine(engine).process }
 
     var body: some View {
         VStack(spacing: 8) {
             HStack {
                 Picker("Engine", selection: $engine) {
-                    ForEach(Engine.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(EngineKind.allCases) { Text($0.displayName).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(maxWidth: 360)
+                .frame(maxWidth: 520)
                 Spacer()
                 Button("Copy") {
                     NSPasteboard.general.clearContents()

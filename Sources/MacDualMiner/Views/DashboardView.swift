@@ -7,9 +7,10 @@ struct DashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 header
+                SwitchingBanner()
                 HStack(alignment: .top, spacing: 14) {
-                    cpuCard
-                    gpuCard
+                    deviceCard(.cpu)
+                    deviceCard(.gpu)
                 }
                 HStack(alignment: .top, spacing: 14) {
                     systemCard
@@ -25,55 +26,59 @@ struct DashboardView: View {
         return HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(hw.chipName).font(.title2.bold())
-                Text("\(hw.totalCores) CPU cores (\(hw.superCores) super + \(hw.performanceCores) performance) · \(hw.gpuName) · \(hw.memoryGB) GB")
+                Text("\(hw.totalCores) CPU cores (\(hw.superCores) + \(hw.performanceCores)) · \(hw.gpuName) · \(hw.memoryGB) GB")
                     .font(.callout).foregroundStyle(.secondary)
             }
             Spacer()
             HStack(spacing: 6) {
                 StatusDot(color: coordinator.isMining ? .green : (coordinator.wantsMining ? .orange : .secondary))
-                Text(coordinator.isMining ? "Mining" : (coordinator.wantsMining ? "Waiting" : "Stopped"))
+                Text(coordinator.isBenchmarking ? "Benchmarking" : (coordinator.isMining ? "Mining" : (coordinator.wantsMining ? "Waiting" : "Stopped")))
                     .font(.headline)
             }
         }
     }
 
-    private var cpuCard: some View {
-        let cpu = coordinator.cpu
-        return Card(title: "CPU · Monero (XMRig)", systemImage: "cpu") {
-            Text(Format.hashrate(cpu.hashrate10s))
+    private func deviceCard(_ device: Device) -> some View {
+        let running = coordinator.runningEngine(on: device)
+        let planned = coordinator.activePlan.option(on: device)
+        let coin = (running?.job?.option ?? planned)?.coin
+        let title = device == .cpu ? "CPU" : "GPU"
+        return Card(title: "\(title) · \(coin.map { "\($0.name) (\($0.tag))" } ?? "idle")",
+                    systemImage: device == .cpu ? "cpu" : "square.stack.3d.up") {
+            Text(Format.hashrate(running.map { $0.hashrate(for: device) > 0 ? $0.hashrate(for: device) : ($0.displayHashrate ?? 0) }))
                 .font(.system(size: 30, weight: .semibold, design: .rounded))
                 .monospacedDigit()
-            StatRow(label: "60s / 15m avg", value: "\(Format.hashrate(cpu.hashrate60s)) / \(Format.hashrate(cpu.hashrate15m))")
-            StatRow(label: "Threads", value: cpu.threadsInUse.map(String.init) ?? "—")
-            StatRow(label: "Shares", value: "\(cpu.acceptedShares) accepted · \(cpu.rejectedShares) rejected")
-            StatRow(label: "Pool", value: cpu.poolAddress ?? coordinator.settings.xmrPool)
-            StatRow(label: "Ping", value: cpu.poolPing.map { "\($0) ms" } ?? "—")
-            engineStatus(state: cpu.process.state, note: cpu.statusNote, block: coordinator.cpuBlockReason)
-        }
-    }
-
-    private var gpuCard: some View {
-        let gpu = coordinator.gpu
-        return Card(title: "GPU · Ravencoin (kawpow-metal)", systemImage: "square.stack.3d.up") {
-            Text(Format.hashrate(gpu.hashrate))
-                .font(.system(size: 30, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-            StatRow(label: "Smoothed", value: Format.hashrate(gpu.averageHashrate))
-            StatRow(label: "Phase", value: gpu.phase)
-            StatRow(label: "Shares", value: "\(gpu.acceptedShares) accepted · \(gpu.rejectedShares) rejected")
-            StatRow(label: "Pool", value: coordinator.settings.rvnPool)
-            StatRow(label: "Block height", value: gpu.blockHeight.map(String.init) ?? "—")
-            engineStatus(state: gpu.process.state, note: nil, block: coordinator.gpuBlockReason)
+            StatRow(label: "Engine", value: (running?.kind ?? planned?.engine).map { "\($0.displayName) · \($0.backend)" } ?? "—")
+            StatRow(label: "Algorithm", value: coin?.algorithm.rawValue ?? "—")
+            if let running, running.kind.devices.count == 2 {
+                StatRow(label: "Shared with", value: device == .cpu ? "GPU (same process)" : "CPU (same process)")
+            }
+            StatRow(label: "Shares", value: running.map { "\($0.acceptedShares) accepted · \($0.rejectedShares) rejected" } ?? "—")
+            StatRow(label: "Pool", value: running?.job?.poolAddress ?? "—")
+            StatRow(label: "Status", value: running?.statusText ?? "Stopped")
+            PowerLevelControl(device: device, compact: true)
+                .font(.callout)
+            if let block = coordinator.blockReasons[device], coordinator.wantsMining || block.contains("wallet") || block.contains("installed") {
+                HStack(alignment: .top, spacing: 6) {
+                    StatusDot(color: .orange).padding(.top, 4)
+                    Text(block).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            if case .failed(let why) = running?.process.state ?? .stopped {
+                Text(why).font(.caption).foregroundStyle(.red)
+            }
         }
     }
 
     private var systemCard: some View {
         let sys = coordinator.system
         let watts = coordinator.allocatedWatts
+        let breakdown = watts.sorted { $0.key.rawValue < $1.key.rawValue }
+            .map { "\($0.key.displayName) \(Format.watts($0.value))" }.joined(separator: ", ")
         return Card(title: "Power & Thermals", systemImage: "bolt.fill") {
             StatRow(label: "Mac power now", value: sys.systemWatts == nil ? "Sensor unavailable" : Format.watts(sys.systemWatts))
             StatRow(label: "Idle baseline", value: sys.idleBaselineWatts == nil ? "Learning…" : Format.watts(sys.idleBaselineWatts))
-            StatRow(label: "Charged to mining", value: "\(Format.watts(watts.cpu + watts.gpu)) (CPU \(Format.watts(watts.cpu)), GPU \(Format.watts(watts.gpu)))")
+            StatRow(label: "Charged to mining", value: breakdown.isEmpty ? "—" : breakdown)
             StatRow(label: "Thermal pressure", value: sys.thermalLabel)
             StatRow(label: "Power source", value: sys.onBattery ? "Battery" : "AC power")
             StatRow(label: "Idle for", value: Duration.seconds(sys.idleSeconds).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .abbreviated)))
@@ -89,31 +94,58 @@ struct DashboardView: View {
             if let breakEven = e.breakEvenUSDPerKWh {
                 StatRow(label: "Break-even electricity", value: Format.usd(breakEven) + "/kWh")
             }
-            if !coordinator.market.problems.isEmpty {
-                ForEach(coordinator.market.problems, id: \.self) { problem in
-                    Label(problem, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
-                }
+            if let problem = coordinator.profit.problem {
+                Label(problem, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
             }
             Text("Details on the Earnings tab").font(.caption).foregroundStyle(.secondary)
         }
     }
+}
 
-    @ViewBuilder
-    private func engineStatus(state: MinerProcess.State, note: String?, block: String?) -> some View {
-        let (color, text): (Color, String) = {
-            if let block, coordinator.wantsMining || block.contains("wallet") || block.contains("Engine") {
-                return (.orange, block)
+/// Shows the switching mode, what's running and any better plan the profit check found.
+struct SwitchingBanner: View {
+    @Environment(MiningCoordinator.self) private var coordinator
+
+    var body: some View {
+        let mode = coordinator.settings.switchingMode
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Label(modeTitle(mode), systemImage: mode == .auto ? "arrow.triangle.2.circlepath" : (mode == .recommend ? "lightbulb" : "hand.raised"))
+                    .font(.headline)
+                Spacer()
+                if let status = coordinator.benchmarkStatus {
+                    Text(status).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
             }
-            switch state {
-            case .running: return (.green, note ?? "Running")
-            case .stopped: return (.secondary, "Stopped")
-            case .restarting(let why): return (.orange, "Restarting – \(why)")
-            case .failed(let why): return (.red, why)
+            Text("Now: \(coordinator.activePlan.summary)").font(.callout)
+            if let better = coordinator.recommendedPlan {
+                HStack {
+                    Text("Better: \(better.summary) – \(Format.usd(better.netUSDPerDay))/day")
+                        .font(.callout.weight(.semibold)).foregroundStyle(.green)
+                    Spacer()
+                    Button(mode == .auto ? "Switch now" : "Switch") {
+                        coordinator.adopt(better, reason: "Switched to \(better.summary) (from the recommendation)")
+                    }
+                }
+                if mode == .auto {
+                    Text("Auto-switch waits until the current coins have run \(coordinator.settings.minimumRunMinutes) min, so DAGs aren't rebuilt constantly.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
-        }()
-        HStack(alignment: .top, spacing: 6) {
-            StatusDot(color: color).padding(.top, 4)
-            Text(text).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if let last = coordinator.switchLog.first {
+                Text(last).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func modeTitle(_ mode: SwitchingMode) -> String {
+        switch mode {
+        case .auto: return "Auto-switching to the most profitable coin"
+        case .recommend: return "Recommending the most profitable coin"
+        case .manual: return "Manual coin choice"
         }
     }
 }

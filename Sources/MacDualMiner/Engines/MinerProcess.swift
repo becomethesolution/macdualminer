@@ -38,9 +38,39 @@ final class MinerProcess {
     @ObservationIgnored private var restartTask: Task<Void, Never>?
     @ObservationIgnored private let maxLogLines = 600
 
+    /// Share of time the engine is allowed to run (0.1…1). Below 1 the process is paused and resumed
+    /// (SIGSTOP/SIGCONT) in short bursts – a universal power limiter for engines with no intensity setting.
+    var dutyCycle: Double = 1 {
+        didSet {
+            dutyCycle = min(1, max(0.1, dutyCycle))
+            if dutyCycle != oldValue { updateThrottle() }
+        }
+    }
+
+    @ObservationIgnored private var throttleTask: Task<Void, Never>?
+
     init(name: String) { self.name = name }
 
     var isRunning: Bool { state == .running }
+
+    private func updateThrottle() {
+        throttleTask?.cancel()
+        throttleTask = nil
+        if let pid = process?.processIdentifier { kill(pid, SIGCONT) }
+        guard dutyCycle < 0.999, let proc = process, proc.isRunning else { return }
+        let pid = proc.processIdentifier
+        let on = dutyCycle, period = 1.0
+        throttleTask = Task.detached(priority: .high) {
+            while !Task.isCancelled {
+                kill(pid, SIGCONT)
+                try? await Task.sleep(for: .milliseconds(Int(period * on * 1000)))
+                guard !Task.isCancelled else { break }
+                kill(pid, SIGSTOP)
+                try? await Task.sleep(for: .milliseconds(Int(period * (1 - on) * 1000)))
+            }
+            kill(pid, SIGCONT)
+        }
+    }
 
     func start(executable: URL, arguments: [String], environment: [String: String] = [:], workingDirectory: URL) {
         stop()
@@ -54,8 +84,11 @@ final class MinerProcess {
         stopRequested = true
         restartTask?.cancel()
         restartTask = nil
+        throttleTask?.cancel()
+        throttleTask = nil
         if let proc = process, proc.isRunning {
             let pid = proc.processIdentifier
+            kill(pid, SIGCONT)  // a paused process can't act on SIGTERM
             proc.terminate() // SIGTERM
             Task.detached {
                 try? await Task.sleep(for: .seconds(5))
@@ -108,6 +141,7 @@ final class MinerProcess {
             try proc.run()
             EngineReaper.record(pid: proc.processIdentifier)
             process = proc
+            updateThrottle()
             startedAt = Date()
             state = .running
             append("— \(name) started: \(launch.exe.lastPathComponent) \(redacted(launch.args).joined(separator: " "))")

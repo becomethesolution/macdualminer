@@ -43,16 +43,22 @@ enum Period: String, CaseIterable, Identifiable {
     }
 }
 
+/// What one running engine is earning right now.
 struct CoinEarnings: Equatable {
-    var coin: Coin
+    var tag: String
+    var name: String
+    var algorithm: Algorithm
+    var engine: EngineKind
     var hashrate: Double          // H/s
     var coinsPerSecond: Double    // after pool + dev fees
     var priceUSD: Double?
     var watts: Double
-    var network: NetworkStats?
+    var networkHashrate: Double?  // H/s
+    var blockReward: Double?
+    var dataSource: String?
 
     var usdPerSecond: Double? { priceUSD.map { coinsPerSecond * $0 } }
-    var isComputable: Bool { network != nil && priceUSD != nil }
+    var isComputable: Bool { networkHashrate != nil && priceUSD != nil }
 }
 
 /// Everything the Earnings view needs, for one moment in time.

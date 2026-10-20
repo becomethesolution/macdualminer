@@ -5,8 +5,10 @@ import Observation
 /// It has no API, so stats are parsed from its output.
 @MainActor
 @Observable
-final class KawpowController {
-    let process = MinerProcess(name: "kawpow-metal (GPU · Ravencoin)")
+final class KawpowController: MiningEngine {
+    let kind = EngineKind.kawpow
+    let process = MinerProcess(name: "kawpow-metal (GPU · KawPow)")
+    private(set) var job: MiningJob?
 
     private(set) var hashrate: Double?          // H/s, latest reading
     private(set) var averageHashrate: Double?   // H/s, smoothed
@@ -28,14 +30,19 @@ final class KawpowController {
         return averageHashrate ?? hashrate ?? 0
     }
 
-    func start(settings: MinerSettings) {
+    var statusText: String { process.isRunning ? phase : process.state.label }
+    var displayHashrate: Double? { hashrate }
+
+    func hashrate(for device: Device) -> Double { device == .gpu ? effectiveHashrate : 0 }
+
+    func start(job: MiningJob, settings: MinerSettings, hardware: HardwareInfo) {
         stop()
-        let worker = settings.workerName.isEmpty ? "mac" : settings.workerName
-        activeSignature = settings.gpuConfigSignature
+        activeSignature = job.signature
+        self.job = job
         phase = "Connecting to pool…"
         process.start(
             executable: AppPaths.kawpowExecutable,
-            arguments: ["--pool", settings.rvnPool, "--worker", "\(settings.rvnWallet).\(worker)"],
+            arguments: ["--pool", job.poolAddress, "--worker", job.login],
             environment: [
                 "KAWPOW_RESOURCE_DIR": AppPaths.kawpowDirectory.path,
                 "KAWPOW_CACHE_DIR": AppPaths.kawpowCacheDirectory.path,
@@ -47,6 +54,7 @@ final class KawpowController {
     func stop() {
         process.stop()
         activeSignature = nil
+        job = nil
         hashrate = nil; averageHashrate = nil; lastHashrateAt = nil
         acceptedShares = 0; rejectedShares = 0
         blockHeight = nil

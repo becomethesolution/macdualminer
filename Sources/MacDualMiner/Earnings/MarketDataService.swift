@@ -159,6 +159,18 @@ final class MarketDataService {
         return await perform(request)
     }
 
+    /// Raw body of a successful GET.
+    nonisolated static func getData(_ urlString: String) async -> Data? {
+        guard let url = URL(string: urlString) else { return nil }
+        var request = URLRequest(url: url, timeoutInterval: 20)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("MacDualMiner/1.0", forHTTPHeaderField: "User-Agent")
+        guard let result = try? await URLSession.shared.data(for: request),
+              case let (data, response) = result,
+              let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { return nil }
+        return data
+    }
+
     nonisolated static func postJSON(_ url: URL, body: [String: Any]) async -> Any? {
         var request = URLRequest(url: url, timeoutInterval: 12)
         request.httpMethod = "POST"

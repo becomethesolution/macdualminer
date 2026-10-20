@@ -1,11 +1,13 @@
 import Foundation
 import Observation
 
-/// CPU mining: Monero (RandomX) through XMRig. Stats come from XMRig's local HTTP API.
+/// CPU mining: RandomX coins (Monero, Zephyr, …) through XMRig. Stats come from XMRig's local HTTP API.
 @MainActor
 @Observable
-final class XMRigController {
-    let process = MinerProcess(name: "XMRig (CPU · Monero)")
+final class XMRigController: MiningEngine {
+    let kind = EngineKind.xmrig
+    let process = MinerProcess(name: "XMRig (CPU · RandomX)")
+    private(set) var job: MiningJob?
 
     private(set) var hashrate10s: Double?
     private(set) var hashrate60s: Double?
@@ -31,12 +33,17 @@ final class XMRigController {
         return hashrate60s ?? hashrate10s ?? 0
     }
 
-    func start(settings: MinerSettings, hardware: HardwareInfo) {
+    var statusText: String { statusNote ?? process.state.label }
+    var displayHashrate: Double? { hashrate10s }
+
+    func hashrate(for device: Device) -> Double { device == .cpu ? effectiveHashrate : 0 }
+
+    func start(job: MiningJob, settings: MinerSettings, hardware: HardwareInfo) {
         stop()
         apiPort = Int.random(in: 42_000...42_999)
         apiToken = UUID().uuidString
         do {
-            let config = Self.makeConfig(settings: settings, hardware: hardware, port: apiPort, token: apiToken)
+            let config = Self.makeConfig(job: job, settings: settings, hardware: hardware, port: apiPort, token: apiToken)
             let data = try JSONSerialization.data(withJSONObject: config, options: [.prettyPrinted, .sortedKeys])
             try data.write(to: AppPaths.xmrigConfigFile, options: .atomic)
         } catch {
@@ -44,7 +51,8 @@ final class XMRigController {
             return
         }
         statusNote = "Starting… (RandomX dataset init takes ~10–30s)"
-        activeSignature = settings.cpuConfigSignature
+        activeSignature = job.signature + "|" + settings.cpuTuningSignature
+        self.job = job
         process.start(
             executable: AppPaths.xmrigExecutable,
             arguments: ["--config", AppPaths.xmrigConfigFile.path, "--no-color"],
@@ -58,6 +66,7 @@ final class XMRigController {
         pollTask = nil
         process.stop()
         activeSignature = nil
+        job = nil
         hashrate10s = nil; hashrate60s = nil; hashrate15m = nil
         acceptedShares = 0; rejectedShares = 0
         poolAddress = nil; poolPing = nil; threadsInUse = nil; lastStatsAt = nil
@@ -66,7 +75,7 @@ final class XMRigController {
 
     // MARK: - Config
 
-    nonisolated static func makeConfig(settings s: MinerSettings, hardware: HardwareInfo, port: Int, token: String) -> [String: Any] {
+    nonisolated static func makeConfig(job: MiningJob, settings s: MinerSettings, hardware: HardwareInfo, port: Int, token: String) -> [String: Any] {
         var cpu: [String: Any] = [
             "enabled": true,
             "huge-pages": false,          // not available on macOS
@@ -75,23 +84,20 @@ final class XMRigController {
             "yield": s.cpuYield,
             "max-threads-hint": 100,
         ]
-        if let threads = s.cpuPreset.threads(totalCores: hardware.totalCores, custom: s.cpuCustomThreads) {
-            // One entry per thread; -1 = no affinity (macOS doesn't support pinning anyway).
-            cpu["rx"] = Array(repeating: -1, count: threads)
-        }
+        // One entry per thread; -1 = no affinity (macOS doesn't support pinning anyway).
+        cpu["rx"] = Array(repeating: -1, count: s.cpuThreads(totalCores: hardware.totalCores))
 
-        let worker = s.workerName.isEmpty ? "mac" : s.workerName
-        let pool: [String: Any] = [
-            "url": s.xmrPool,
-            "user": s.xmrWallet,
-            "pass": worker,               // SupportXMR & most nodejs-pools use the password as worker name
-            "rig-id": worker,
+        var pool: [String: Any] = [
+            "url": job.poolAddress,
+            "user": job.login,
+            "pass": job.password,         // SupportXMR & most nodejs-pools use the password as worker name
+            "rig-id": job.worker,
             "keepalive": true,
-            "tls": s.xmrPoolTLS,
-            "coin": "monero",
-            "algo": "rx/0",
+            "tls": job.tls,
+            "algo": job.option.coin?.xmrigAlgo ?? "rx/0",
             "enabled": true,
         ]
+        if job.option.coinTag == "XMR" { pool["coin"] = "monero" }
 
         return [
             "autosave": false,

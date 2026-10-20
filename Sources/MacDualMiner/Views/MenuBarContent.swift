@@ -15,13 +15,19 @@ struct MenuBarContent: View {
                 Text(coordinator.hardware.chipName).font(.caption).foregroundStyle(.secondary)
             }
             Divider()
-            StatRow(label: "CPU · XMR", value: Format.hashrate(coordinator.cpu.hashrate10s))
-            if let reason = coordinator.cpuBlockReason, coordinator.wantsMining {
-                Text(reason).font(.caption).foregroundStyle(.orange)
+            ForEach(Device.allCases) { device in
+                let running = coordinator.runningEngine(on: device)
+                let tag = running?.job?.option.coinTag ?? coordinator.activePlan.option(on: device)?.coinTag ?? "—"
+                StatRow(label: "\(device.label) · \(tag)", value: Format.hashrate(running?.hashrate(for: device)))
+                if let reason = coordinator.blockReasons[device], coordinator.wantsMining {
+                    Text(reason).font(.caption).foregroundStyle(.orange)
+                }
             }
-            StatRow(label: "GPU · RVN", value: Format.hashrate(coordinator.gpu.hashrate))
-            if let reason = coordinator.gpuBlockReason, coordinator.wantsMining {
-                Text(reason).font(.caption).foregroundStyle(.orange)
+            if let better = coordinator.recommendedPlan {
+                Button("Switch to \(better.summary)") {
+                    coordinator.adopt(better, reason: "Switched to \(better.summary) from the menu bar")
+                }
+                .font(.caption)
             }
             StatRow(label: "Power", value: Format.watts(e.totalWatts))
             Divider()

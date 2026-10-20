@@ -1,45 +1,56 @@
 # MacDualMiner
 
-A lightweight native macOS app that mines on **both halves of an Apple Silicon chip at once**, tuned for the **M5 Max**:
+A lightweight native macOS app that mines on **both halves of an Apple Silicon chip at once**, tuned for the **M5 Max**. It runs four engines and **automatically picks the most profitable coin for each part of the chip**.
 
-| Part of the chip | Engine | Coin | Algorithm |
-|---|---|---|---|
-| CPU (18 cores: 6 super + 12 performance) | [XMRig](https://github.com/xmrig/xmrig) | Monero (XMR) | RandomX |
-| GPU (Metal) | [kawpow-metal](https://github.com/imperatormk/kawpow-metal) | Ravencoin (RVN) | KawPow |
+| Engine | Part of the chip | Algorithm | Coins in the profit check | How it ships |
+|---|---|---|---|---|
+| [XMRig](https://github.com/xmrig/xmrig) | CPU | RandomX | Monero, Zephyr, QRL, Epic Cash, Etica | Bundled (official release, SHA-256 verified) |
+| [kawpow-metal](https://github.com/imperatormk/kawpow-metal) | GPU (Metal) | KawPow | Ravencoin, Quai, Neoxa, Neurai, Kerrigan | Bundled (built from a pinned commit) |
+| [ethminer-m1](https://github.com/gyf304/ethminer-m1) | GPU (OpenCL) | Ethash | EthereumPoW, OctaSpace, QuarkChain | Bundled (release binary, pinned SHA-256) |
+| [UselethMiner](https://github.com/Chainfire/UselethMiner) | CPU + GPU | Ethash | EthereumPoW | Optional in-app download (closed source, 1% fee) |
 
-It also includes a **real-time earnings calculator**. It combines your live hashrate with each coin's live network difficulty, block reward and USD price, then subtracts pool fees, the XMRig dev fee and your electricity cost. The result is a realistic **USD per hour, day, week, month and year**.
+Engine choices and reference hashrates come from the Mac tests on [cryptominingonmacs.com](https://cryptominingonmacs.com/viewtopic.php?t=135). On the M5 Max those tests measured XMRig at 9.0 kH/s, ethminer-m1 at 41.6 MH/s and KawPow at 14.4 MH/s ([t=169](https://cryptominingonmacs.com/viewtopic.php?t=169)).
 
-> **Reality check:** a Mac is not a profitable mining rig. Expect cents per day, and possibly a net loss once electricity is included. The earnings tab is built to show that honestly. Mining also keeps the chip hot and fans busy for as long as it runs.
+> **Reality check:** a Mac is not a profitable mining rig. Expect cents per day, and possibly a net loss once electricity is included. The earnings tab and the profit check are built to show that honestly. Mining also keeps the chip hot and fans busy for as long as it runs.
 
 ---
 
 ## Features
 
-- **One window + menu bar**: start or stop with a click (⇧⌘M). The menu bar shows live net $/day.
-- **Live dashboard**: CPU hashrate (10s/60s/15m), GPU MH/s, shares, pool, DAG progress, power draw, thermals.
-- **Earnings tab**:
-  - Live prices from CoinGecko, with Coinpaprika as a fallback.
-  - Live network difficulty: Monero from SupportXMR's API or a Monero node, Ravencoin from Blockbook, Insight or an explorer.
-  - Block rewards: XMR from the network; RVN from the halving schedule (1,250 RVN since block 4.2M).
-  - Electricity from the Mac's own power sensor (SMC `PSTR`). By default it charges only the extra watts above idle. You can also use whole-Mac power or manual estimates.
-  - A per-period table (hour → year), break-even electricity price, and your share of each network's hashrate.
-- **M5 Max presets**:
-  - CPU: Auto, Full (18), Balanced (12, the default and best alongside GPU mining), Light (6), or Custom.
-  - RandomX "fast" mode. Huge pages are off because macOS doesn't support them.
-- **Rules**: pause on battery, pause under serious thermal pressure, mine only when idle for N minutes, keep the Mac awake while mining, start on launch, open at login.
-- **Robust**:
+- **Profit Check tab.** Every coin the engines can mine, with:
+  - its **algorithm**
+  - the **engine** and part of the chip it uses
+  - **your hashrate** on that algorithm: live, benchmarked on this Mac, or the cryptominingonmacs.com reference for your chip
+  - coins mined per day
+  - **net USD/day** (gross minus electricity)
+  - 24h trading volume
+  - whether it's ready to mine
+
+  Data comes from WhatToMine plus CoinGecko's BTC price. Coins too thinly traded to sell, coins with stale network data, and coins without a wallet or pool are flagged rather than picked.
+- **Auto-switching.** The app picks the best CPU + GPU combination, or UselethMiner on both, and re-checks every 15 minutes. It switches only when the new plan is at least 10% better and the current coins have run for 20 minutes. All three thresholds are adjustable. The other modes are *Recommend*, which shows a "Switch" button, and *Manual*.
+- **Benchmark this Mac.** Runs each installed engine for about 2 minutes on its best ready coin and records hashrate and power. Engines that mine steadily for 5 minutes also update their numbers automatically.
+- **Power rating 1–10 for CPU and GPU separately.**
+  - CPU: the level sets how many cores mine.
+  - GPU: the level sets how much of each second the GPU engine runs; it's paused and resumed in short bursts.
+  - The profit check scales its hashrate and power estimates to these levels.
+- **Payouts:** set a wallet per coin, or a single Kryptex account that receives every coin on a Kryptex pool (auto-convert to BTC is available for all except QUAI).
+- **Dashboard and menu bar:**
+  - The dashboard shows each part of the chip: coin, algorithm, engine, hashrate, shares, pool, status and power slider.
+  - The menu bar shows live net $/day and offers any better plan.
+- **Earnings tab:** live USD per hour, day, week, month and year for whatever is running. Electricity comes from the Mac's own power sensor (SMC `PSTR`) and, by default, counts only the extra watts above idle.
+- **Rules:** pause on battery, pause under serious thermal pressure, mine only when idle, keep the Mac awake while mining, start on launch, open at login.
+- **Robust:**
   - Engines restart with back-off if they crash.
-  - Settings changes restart only the engine they affect.
-  - Leftover engine processes are cleaned up if the app ever crashes.
-  - XMRig's API runs on localhost with a random token each run.
-- **Settings** are stored in `~/Library/Application Support/MacDualMiner/settings.json`.
+  - Only the engines a change affects are restarted.
+  - Leftover engine processes are cleaned up after a crash.
+  - Every bundled binary is checksum-verified at build time.
 
 ## Requirements
 
 - Apple Silicon Mac (built and tuned for M5 Max; any M-series should work)
 - macOS 15 Sequoia or later
 - Xcode or the Command Line Tools: `xcode-select --install`
-- A Monero wallet address and/or a Ravencoin wallet address (from a wallet you control)
+- Wallet addresses for the coins you want to mine (from wallets you control), or a Kryptex account
 
 ## Build & install
 
@@ -62,17 +73,19 @@ Run the unit tests (earnings maths, parsers, config generation) with `swift test
 
 ## First run
 
-1. Open **MacDualMiner** and go to **Settings (⌘,)**.
-2. **CPU · Monero**: paste your XMR address (starts with `4` or `8`). The default pool is SupportXMR (`pool.supportxmr.com:443`, TLS, 0.6% fee).
-3. **GPU · Ravencoin**: paste your RVN address (starts with `R`). The default pool is 2Miners (`rvn.2miners.com:6060`, 1% fee). kawpow-metal only speaks plain stratum, not TLS.
-4. **Earnings**: set your electricity price per kWh from your bill, supply plus delivery. The default is $0.17.
-5. Press **Start Mining**.
+1. Open **MacDualMiner** and go to **Settings (⌘,) › Coins & Wallets**.
+2. For each coin you want to be eligible, paste a wallet address. Alternatively, enter a **Kryptex username** once, and every coin on a Kryptex pool (Monero, Zephyr, EthereumPoW, Quai) becomes eligible.
+3. Coins without a preset pool (QRL, Neoxa, Neurai, …) need a custom pool, entered under the coin.
+4. **Settings › Earnings**: set your electricity price per kWh from your bill.
+5. Optional: under **Settings › Engines**, click *Download & install* for UselethMiner.
+6. Open the **Profit Check** tab and click **Benchmark this Mac** so the ranking uses this Mac's real hashrates. Until then it uses the cryptominingonmacs.com result for your chip.
+7. Press **Start Mining**. In Auto mode the app runs the best plan and keeps re-checking.
 
 What to expect on first start:
 
-- XMRig spends about 10–30 seconds building the 2 GB RandomX dataset.
-- kawpow-metal builds the current epoch's light cache, then generates a multi-GB DAG on the GPU, which takes about a minute.
-- The **idle baseline** for the power calculation is learned while the app is open and not mining. Leave it idle for a minute before your first start for the most accurate electricity numbers.
+- XMRig spends about 10–30 seconds building its 2 GB RandomX dataset.
+- GPU engines build a multi-GB DAG first (about a minute).
+- UselethMiner's first DAG load can take a few minutes.
 
 ## How the earnings maths works
 
@@ -99,11 +112,13 @@ These are expected values. Actual pool payouts vary with luck and difficulty swi
 ```
 Sources/MacDualMiner/
   MacDualMinerApp.swift      App, menu bar, crash clean-up
-  MiningCoordinator.swift    Start/stop + pause rules, power allocation, earnings snapshot
-  Engines/                   MinerProcess (child-process runner), XMRig + kawpow controllers
-  Earnings/                  Calculator maths, live price / network-difficulty fetching
+  MiningCoordinator.swift    Start/stop, auto-switching, pause rules, benchmarks, power allocation, earnings
+  Model/CoinCatalog.swift    Coins per algorithm, engines, pool presets
+  Model/ReferenceHashrates   cryptominingonmacs.com results per chip
+  Engines/                   MinerProcess (runner + GPU duty cycle), XMRig, kawpow, ethminer, UselethMiner, installer
+  Earnings/                  Earnings maths, WhatToMine data, profit planner
   System/                    SMC power sensor, battery, thermal, idle time
-  Views/                     Dashboard, Earnings, Logs, Settings, menu bar
+  Views/                     Dashboard, Profit Check, Earnings, Logs, Settings, menu bar
 scripts/build-app.sh         Fetch + verify + build engines, assemble .app
 scripts/patch_kawpow.py      Makes kawpow-metal bundle-friendly
 .github/workflows/build.yml  CI: tests + app build on macOS; releases on v* tags

@@ -29,6 +29,12 @@ enum AppPaths {
     static var xmrigExecutable: URL { enginesDirectory.appendingPathComponent("xmrig/xmrig") }
     static var kawpowDirectory: URL { enginesDirectory.appendingPathComponent("kawpow", isDirectory: true) }
     static var kawpowExecutable: URL { kawpowDirectory.appendingPathComponent("kawpow-metal") }
+    static var ethminerExecutable: URL { enginesDirectory.appendingPathComponent("ethminer/ethminer-m1") }
+    /// UselethMiner is closed-source freeware, so it isn't bundled: the app downloads it from the author's
+    /// GitHub release on request and installs it here.
+    static var uselethDirectory: URL { supportDirectory.appendingPathComponent("engines/useleth", isDirectory: true) }
+    static var uselethExecutable: URL { uselethDirectory.appendingPathComponent("uselethminer") }
+    static var benchmarksFile: URL { supportDirectory.appendingPathComponent("benchmarks.json") }
 
     @discardableResult
     private static func ensure(_ url: URL) -> URL {

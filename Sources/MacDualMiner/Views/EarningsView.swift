@@ -13,7 +13,7 @@ struct EarningsView: View {
                     table(e)
                 }
                 HStack(alignment: .top, spacing: 14) {
-                    ForEach(e.coins, id: \.coin) { coinCard($0) }
+                    ForEach(e.coins, id: \.tag) { coinCard($0) }
                 }
                 assumptions(e)
             }
@@ -58,8 +58,7 @@ struct EarningsView: View {
         Grid(alignment: .trailing, horizontalSpacing: 18, verticalSpacing: 8) {
             GridRow {
                 Text("Period").gridColumnAlignment(.leading)
-                Text("XMR mined")
-                Text("RVN mined")
+                ForEach(e.coins, id: \.tag) { c in Text("\(c.tag) mined") }
                 Text("Gross USD")
                 Text("Electricity")
                 Text("Net USD")
@@ -70,8 +69,9 @@ struct EarningsView: View {
             ForEach(Period.allCases) { period in
                 GridRow {
                     Text(period.rawValue).gridColumnAlignment(.leading)
-                    Text(coins(e, .xmr, period))
-                    Text(coins(e, .rvn, period))
+                    ForEach(e.coins, id: \.tag) { c in
+                        Text(c.hashrate > 0 ? Format.coins(c.coinsPerSecond * period.seconds, ticker: c.tag) : "—")
+                    }
                     Text(Format.usd(e.gross(period)))
                     Text(Format.usd(-e.power(period))).foregroundStyle(.secondary)
                     Text(Format.usd(e.net(period)))
@@ -85,40 +85,31 @@ struct EarningsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func coins(_ e: EarningsSnapshot, _ coin: Coin, _ period: Period) -> String {
-        guard let c = e.coins.first(where: { $0.coin == coin }), c.hashrate > 0 else { return "—" }
-        return Format.coins(c.coinsPerSecond * period.seconds, ticker: coin.ticker)
-    }
-
     private func coinCard(_ c: CoinEarnings) -> some View {
-        Card(title: "\(c.coin.name) (\(c.coin.ticker))", systemImage: c.coin == .xmr ? "cpu" : "square.stack.3d.up") {
+        Card(title: "\(c.name) (\(c.tag))", systemImage: c.engine.devices.contains(.cpu) ? "cpu" : "square.stack.3d.up") {
+            StatRow(label: "Engine · algorithm", value: "\(c.engine.displayName) · \(c.algorithm.rawValue)")
             StatRow(label: "Your hashrate", value: Format.hashrate(c.hashrate))
             StatRow(label: "Price", value: Format.usd(c.priceUSD))
-            StatRow(label: "Network difficulty", value: Format.number(c.network?.difficulty))
-            StatRow(label: "Network hashrate", value: Format.hashrate(c.network?.networkHashrate(for: c.coin)))
+            StatRow(label: "Network hashrate", value: Format.hashrate(c.networkHashrate))
             StatRow(label: "Your share of network", value: share(c))
-            StatRow(label: "Block reward", value: c.network.map { Format.coins($0.blockReward, ticker: c.coin.ticker) } ?? "—")
+            StatRow(label: "Block reward", value: c.blockReward.map { Format.coins($0, ticker: c.tag) } ?? "—")
             StatRow(label: "Power charged", value: Format.watts(c.watts))
             StatRow(label: "Gross per day", value: Format.usd(c.usdPerSecond.map { $0 * Period.day.seconds }))
-            if let net = c.network {
-                Text("Network data: \(net.source)").font(.caption).foregroundStyle(.secondary)
+            if let source = c.dataSource {
+                Text("Network data: \(source)").font(.caption).foregroundStyle(.secondary)
             }
         }
     }
 
     private func share(_ c: CoinEarnings) -> String {
-        guard let net = c.network, c.hashrate > 0 else { return "—" }
-        let total = net.networkHashrate(for: c.coin)
-        guard total > 0 else { return "—" }
+        guard let total = c.networkHashrate, total > 0, c.hashrate > 0 else { return "—" }
         return String(format: "%.8f%%", c.hashrate / total * 100)
     }
 
     private func assumptions(_ e: EarningsSnapshot) -> some View {
         let s = coordinator.settings
         return Card(title: "How this is calculated", systemImage: "info.circle") {
-            Text(verbatim: String(
-                format: "Coins per second = your hashrate ÷ (hashes the network needs per block) × block reward, minus pool fee (XMR %.1f%%, RVN %.1f%%) and XMRig's %.0f%% dev donation. Values use the 60-second average hashrate and are an expected value: pool payouts vary with luck and difficulty changes.",
-                s.xmrPoolFeePercent, s.rvnPoolFeePercent, s.xmrDevFeePercent))
+            Text(verbatim: "Coins per second = your hashrate ÷ network hashrate × block reward ÷ block time, minus the pool fee and the engine's dev fee (XMRig and UselethMiner keep 1%). Network numbers come from WhatToMine, prices from WhatToMine's BTC rate × CoinGecko's BTC price. These are expected values: pool payouts vary with luck and difficulty changes.")
                 .font(.callout)
                 .fixedSize(horizontal: false, vertical: true)
             StatRow(label: "Electricity rate", value: Format.usd(s.electricityUSDPerKWh) + "/kWh")

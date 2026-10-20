@@ -4,8 +4,9 @@ import ServiceManagement
 struct SettingsView: View {
     var body: some View {
         TabView {
-            CPUSettings().tabItem { Label("CPU · Monero", systemImage: "cpu") }
-            GPUSettings().tabItem { Label("GPU · Ravencoin", systemImage: "square.stack.3d.up") }
+            CoinsSettings().tabItem { Label("Coins & Wallets", systemImage: "bitcoinsign.circle") }
+            SwitchingSettings().tabItem { Label("Switching", systemImage: "arrow.triangle.2.circlepath") }
+            EngineSettings().tabItem { Label("Engines", systemImage: "cpu") }
             RulesSettings().tabItem { Label("Rules", systemImage: "slider.horizontal.3") }
             EarningsSettings().tabItem { Label("Earnings", systemImage: "dollarsign.circle") }
         }
@@ -13,54 +14,136 @@ struct SettingsView: View {
     }
 }
 
-private struct CPUSettings: View {
+/// One row per coin: algorithm, engines, wallet and pool.
+private struct CoinsSettings: View {
     @Environment(MiningCoordinator.self) private var coordinator
 
     var body: some View {
         @Bindable var store = coordinator.store
-        let cores = coordinator.hardware.totalCores
         Form {
             Section {
-                Toggle("Mine Monero on the CPU", isOn: $store.settings.cpuEnabled)
-                TextField("Monero wallet address", text: $store.settings.xmrWallet, prompt: Text("4… or 8… (95 characters)"))
-                    .textFieldStyle(.roundedBorder)
-                validity(store.settings.xmrWallet, valid: WalletValidator.isMonero(store.settings.xmrWallet))
                 TextField("Worker name", text: $store.settings.workerName)
-            }
-            Section("Pool") {
-                TextField("Pool host:port", text: $store.settings.xmrPool)
-                Toggle("Use TLS", isOn: $store.settings.xmrPoolTLS)
-                HStack {
-                    Text("Pool fee")
-                    Spacer()
-                    TextField("", value: $store.settings.xmrPoolFeePercent, format: .number).frame(width: 60)
-                    Text(verbatim: "%")
-                }
-                Text(verbatim: "Default is SupportXMR (0.6% fee, port 443 with TLS). Any Monero stratum pool works.")
+                TextField("Kryptex account (username)", text: $store.settings.kryptexAccount, prompt: Text("optional"))
+                Text("Coins on a Kryptex pool with no wallet of their own are paid to this Kryptex account, which can auto-convert to BTC (not QUAI). Use your Kryptex username rather than an email for ethminer and UselethMiner.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Section("Performance – \(cores) cores detected") {
-                Picker("Threads", selection: $store.settings.cpuPreset) {
-                    ForEach(CPUPreset.allCases) { preset in
-                        if let n = preset.threads(totalCores: cores, custom: store.settings.cpuCustomThreads), preset != .custom {
-                            Text("\(preset.label) (\(n))").tag(preset)
-                        } else {
-                            Text(preset.label).tag(preset)
-                        }
+            ForEach(Algorithm.allCases) { algorithm in
+                Section("\(algorithm.rawValue) – " + engines(for: algorithm)) {
+                    ForEach(CoinCatalog.coins.filter { $0.algorithm == algorithm }) { coin in
+                        CoinRow(coin: coin)
                     }
                 }
-                if store.settings.cpuPreset == .custom {
-                    Stepper("Custom threads: \(store.settings.cpuCustomThreads)",
-                            value: $store.settings.cpuCustomThreads, in: 1...max(1, cores))
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private func engines(for algorithm: Algorithm) -> String {
+        EngineKind.allCases.filter { $0.algorithm == algorithm }
+            .map { "\($0.displayName) (\($0.deviceLabel))" }.joined(separator: ", ")
+    }
+}
+
+private struct CoinRow: View {
+    @Environment(MiningCoordinator.self) private var coordinator
+    let coin: CoinSpec
+
+    var body: some View {
+        @Bindable var store = coordinator.store
+        let tag = coin.tag
+        let wallet = Binding<String>(
+            get: { store.settings.wallet(for: tag) },
+            set: { newValue in
+                store.settings.wallets[tag] = newValue
+                if tag == "XMR" { store.settings.xmrWallet = newValue }
+                if tag == "RVN" { store.settings.rvnWallet = newValue }
+            })
+        let poolChoice = Binding<String>(
+            get: { store.settings.poolChoice[tag] ?? (coin.pools.first?.id ?? "custom") },
+            set: { store.settings.poolChoice[tag] = $0 })
+        let custom = Binding<CustomPool>(
+            get: { store.settings.customPools[tag] ?? CustomPool() },
+            set: { store.settings.customPools[tag] = $0 })
+
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("\(coin.name) (\(tag))").font(.headline)
+                if coin.experimental { Text("beta").font(.caption2).padding(.horizontal, 4).background(.orange.opacity(0.2), in: Capsule()) }
+                Spacer()
+                if let problem = store.settings.readinessProblem(MiningOption(engine: coin.engines[0], coinTag: tag)) {
+                    Text(problem).font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Label("Ready", systemImage: "checkmark.circle").font(.caption).foregroundStyle(.green)
                 }
-                Picker("Priority", selection: $store.settings.cpuPriority) {
-                    Text("Idle (0)").tag(0)
-                    Text("Low (1)").tag(1)
-                    Text("Normal (2)").tag(2)
-                    Text("High (3)").tag(3)
+            }
+            TextField("\(tag) wallet", text: wallet, prompt: Text(coin.walletHint))
+                .textFieldStyle(.roundedBorder)
+            if let ok = WalletValidator.check(tag: tag, address: wallet.wrappedValue) {
+                Label(ok ? "Address format looks right" : "That doesn't look like a valid \(tag) address",
+                      systemImage: ok ? "checkmark.circle" : "xmark.octagon")
+                    .font(.caption).foregroundStyle(ok ? Color.green : Color.red)
+            }
+            Picker("Pool", selection: poolChoice) {
+                ForEach(coin.pools) { pool in
+                    Text(verbatim: "\(pool.name) – \(pool.address)\(pool.tls ? " (TLS)" : "") · \(pool.feePercent.formatted())% fee").tag(pool.id)
                 }
-                Toggle("Yield to other apps", isOn: $store.settings.cpuYield)
-                Text("RandomX wants ~2 MB of cache per thread, so on the M5 Max \"Balanced\" often matches \"Full\" in hashrate with less heat – especially while the GPU is also mining. Changes apply automatically (XMRig restarts).")
+                Text("Custom…").tag("custom")
+            }
+            if poolChoice.wrappedValue == "custom" || coin.pools.isEmpty {
+                HStack {
+                    TextField("host:port", text: custom.address)
+                    Toggle("TLS", isOn: custom.tls).toggleStyle(.checkbox)
+                    TextField("Fee %", value: custom.feePercent, format: .number).frame(width: 60)
+                }
+                TextField("Login format", text: custom.userTemplate, prompt: Text("{wallet}.{worker}"))
+                Text("Use {wallet} and {worker}. Most pools take {wallet}.{worker}; Kryptex takes {wallet}/{worker}.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if let note = coin.note { Text(note).font(.caption).foregroundStyle(.secondary) }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+private struct SwitchingSettings: View {
+    @Environment(MiningCoordinator.self) private var coordinator
+
+    var body: some View {
+        @Bindable var store = coordinator.store
+        let cpuOptions = MiningOption.all.filter { $0.engine.devices.contains(.cpu) }
+        let gpuOptions = MiningOption.all.filter { $0.engine.devices.contains(.gpu) }
+        Form {
+            Section {
+                Picker("Mode", selection: $store.settings.switchingMode) {
+                    ForEach(SwitchingMode.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.radioGroup)
+            }
+            Section("Manual / recommend-mode coins") {
+                Picker("CPU", selection: $store.settings.manualCPUOption) {
+                    ForEach(cpuOptions) { Text($0.label).tag($0.id) }
+                }
+                Picker("GPU", selection: $store.settings.manualGPUOption) {
+                    ForEach(gpuOptions) { Text($0.label).tag($0.id) }
+                }
+                Text("UselethMiner uses the CPU and GPU together – picking it for either one runs it alone.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Auto-switch rules") {
+                Stepper("Check every \(store.settings.switchCheckMinutes) min", value: $store.settings.switchCheckMinutes, in: 5...240, step: 5)
+                HStack {
+                    Text("Only switch if at least")
+                    TextField("", value: $store.settings.switchMarginPercent, format: .number).frame(width: 50)
+                    Text(verbatim: "% more profitable")
+                }
+                Stepper("Keep a coin at least \(store.settings.minimumRunMinutes) min", value: $store.settings.minimumRunMinutes, in: 0...720, step: 5)
+                HStack {
+                    Text("Skip coins with under")
+                    TextField("", value: $store.settings.minimumLiquidityBTC, format: .number).frame(width: 60)
+                    Text("BTC of 24h trading volume")
+                }
+                Toggle("Use 24-hour averages (steadier than live values)", isOn: $store.settings.useDayAverages)
+                Text("Every switch on the GPU rebuilds a multi-GB DAG (about a minute of no hashing), so the margin and minimum run time stop it flip-flopping between coins that are almost equal.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -68,31 +151,82 @@ private struct CPUSettings: View {
     }
 }
 
-private struct GPUSettings: View {
+private struct EngineSettings: View {
     @Environment(MiningCoordinator.self) private var coordinator
 
     var body: some View {
         @Bindable var store = coordinator.store
+        let cores = coordinator.hardware.totalCores
         Form {
-            Section {
-                Toggle("Mine Ravencoin on the GPU (Metal)", isOn: $store.settings.gpuEnabled)
-                TextField("Ravencoin wallet address", text: $store.settings.rvnWallet, prompt: Text("R… (34 characters)"))
-                    .textFieldStyle(.roundedBorder)
-                validity(store.settings.rvnWallet, valid: WalletValidator.isRavencoin(store.settings.rvnWallet))
+            Section("Parts of the chip") {
+                Toggle("Mine on the CPU", isOn: $store.settings.cpuEnabled)
+                Toggle("Mine on the GPU", isOn: $store.settings.gpuEnabled)
             }
-            Section("Pool") {
-                TextField("Pool host:port", text: $store.settings.rvnPool)
-                HStack {
-                    Text("Pool fee")
-                    Spacer()
-                    TextField("", value: $store.settings.rvnPoolFeePercent, format: .number).frame(width: 60)
-                    Text(verbatim: "%")
+            Section("Engines") {
+                ForEach(EngineKind.allCases) { kind in
+                    let installed = FileManager.default.isExecutableFile(atPath: kind.executable.path)
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("\(kind.displayName) – \(kind.algorithm.rawValue) on \(kind.deviceLabel) (\(kind.backend))")
+                            Text(verbatim: engineNote(kind) + (installed ? "" : " · not installed"))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if kind == .ethminer {
+                            Toggle("", isOn: $store.settings.ethminerEnabled).labelsHidden()
+                        } else if kind == .useleth {
+                            Toggle("", isOn: $store.settings.uselethEnabled).labelsHidden()
+                        }
+                    }
                 }
-                Text("kawpow-metal speaks plain (non-TLS) stratum. Worker is sent as ADDRESS.\(coordinator.settings.workerName). On first start it builds the epoch's light cache and a multi-GB DAG on the GPU, which takes about a minute.")
+            }
+            Section("Power rating") {
+                PowerLevelControl(device: .cpu)
+                PowerLevelControl(device: .gpu)
+                Text("CPU: sets how many cores mine. GPU: sets how much of each second the GPU engine runs; it is paused in between. UselethMiner uses both: its CPU threads follow the CPU level and the GPU level paces the whole process.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("XMRig") {
+                Picker("Priority", selection: $store.settings.cpuPriority) {
+                    Text("Idle (0)").tag(0)
+                    Text("Low (1)").tag(1)
+                    Text("Normal (2)").tag(2)
+                    Text("High (3)").tag(3)
+                }
+                Toggle("Yield to other apps", isOn: $store.settings.cpuYield)
+            }
+            Section("UselethMiner") {
+                let installer = coordinator.uselethInstaller
+                HStack {
+                    Text(installer.isInstalled ? "Installed (v\(UselethInstaller.version))" : "Not installed")
+                    Spacer()
+                    if installer.isWorking {
+                        ProgressView().controlSize(.small)
+                    } else if installer.isInstalled {
+                        Button("Remove") { installer.uninstall() }
+                    } else {
+                        Button("Download & install") { Task { await installer.install() } }
+                    }
+                }
+                Text("Closed-source freeware by Chainfire, so it isn't bundled. This downloads v\(UselethInstaller.version) from github.com/Chainfire/UselethMiner, checks its SHA-256 and unpacks it into the app's own folder – no admin password, nothing system-wide.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if let status = installer.status { Text(status).font(.caption) }
+                Stepper(store.settings.uselethThreads == 0 ? "CPU threads: one per core (\(cores))" : "CPU threads: \(store.settings.uselethThreads)",
+                        value: $store.settings.uselethThreads, in: 0...max(1, cores * 2))
+                Text("Needs about 7 GB of free RAM and twice the DAG size free on disk (it stores the DAG in ~/.uselethminer). Only EthereumPoW works – it can't load other Ethash chains' DAGs.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func engineNote(_ kind: EngineKind) -> String {
+        switch kind {
+        case .xmrig: return "Open source (GPL-3) · 1% dev donation"
+        case .kawpow: return "Open source (MIT) · no fee · plain stratum only"
+        case .ethminer: return "Open source (GPL-3) · no fee · OpenCL"
+        case .useleth: return "Closed source freeware · 1% dev fee · no TLS"
+        }
     }
 }
 
@@ -202,5 +336,39 @@ private func validity(_ address: String, valid: Bool) -> some View {
         Label("Address format looks right", systemImage: "checkmark.circle").font(.caption).foregroundStyle(.green)
     } else {
         Label("That doesn't look like a valid address", systemImage: "xmark.octagon").font(.caption).foregroundStyle(.red)
+    }
+}
+
+/// 1–10 power rating for one part of the chip, with what it means in plain numbers.
+struct PowerLevelControl: View {
+    @Environment(MiningCoordinator.self) private var coordinator
+    let device: Device
+    var compact = false
+
+    var body: some View {
+        @Bindable var store = coordinator.store
+        let level = device == .cpu ? $store.settings.cpuPowerLevel : $store.settings.gpuPowerLevel
+        let value = Binding<Double>(get: { Double(level.wrappedValue) }, set: { level.wrappedValue = Int($0.rounded()) })
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text("\(device.label) power")
+                Slider(value: value, in: 1...10, step: 1)
+                Text("\(level.wrappedValue)/10").monospacedDigit().frame(width: 40, alignment: .trailing)
+            }
+            if !compact {
+                Text(detail(level.wrappedValue)).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func detail(_ level: Int) -> String {
+        let cores = coordinator.hardware.totalCores
+        switch device {
+        case .cpu:
+            let threads = coordinator.settings.cpuThreads(totalCores: cores)
+            return "\(threads) of \(cores) cores mining" + (level >= 9 ? " – hottest, loudest" : level <= 3 ? " – quiet, light load" : "")
+        case .gpu:
+            return level == 10 ? "GPU mines continuously" : "GPU mines \(level * 10)% of the time (\(level * 100) ms of every second)"
+        }
     }
 }

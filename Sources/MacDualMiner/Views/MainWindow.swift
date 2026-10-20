@@ -4,13 +4,16 @@ struct MainWindow: View {
     @Environment(MiningCoordinator.self) private var coordinator
     @State private var tab: Tab = .dashboard
 
-    enum Tab: Hashable { case dashboard, earnings, logs }
+    enum Tab: Hashable { case dashboard, profit, earnings, logs }
 
     var body: some View {
         TabView(selection: $tab) {
             DashboardView()
                 .tabItem { Label("Dashboard", systemImage: "gauge.with.dots.needle.67percent") }
                 .tag(Tab.dashboard)
+            ProfitCheckView()
+                .tabItem { Label("Profit Check", systemImage: "chart.bar.xaxis") }
+                .tag(Tab.profit)
             EarningsView()
                 .tabItem { Label("Earnings", systemImage: "dollarsign.circle") }
                 .tag(Tab.earnings)

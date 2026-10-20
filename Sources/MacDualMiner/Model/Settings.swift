@@ -42,7 +42,62 @@ enum PowerSourceMode: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// What decides which coin each part of the chip mines.
+enum SwitchingMode: String, Codable, CaseIterable, Identifiable {
+    case auto, recommend, manual
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .auto: return "Auto-switch to the most profitable coin"
+        case .recommend: return "Recommend only – I'll switch myself"
+        case .manual: return "Manual – always mine my chosen coins"
+        }
+    }
+}
+
+/// A pool the user typed in for a coin.
+struct CustomPool: Codable, Equatable {
+    var address = ""
+    var tls = false
+    var feePercent = 1.0
+    var userTemplate = "{wallet}.{worker}"
+}
+
 struct MinerSettings: Codable, Equatable {
+    // MARK: Coins, wallets, pools
+    /// Receiving address per coin tag ("XMR", "RVN", …).
+    var wallets: [String: String] = [:]
+    /// Kryptex username/email – used for any coin on a Kryptex pool that has no wallet of its own.
+    var kryptexAccount = ""
+    /// Chosen pool preset id per coin, or "custom".
+    var poolChoice: [String: String] = [:]
+    var customPools: [String: CustomPool] = [:]
+
+    // MARK: Switching
+    var switchingMode: SwitchingMode = .auto
+    var manualCPUOption = "xmrig:XMR"
+    var manualGPUOption = "kawpow:RVN"
+    var switchCheckMinutes = 15
+    var switchMarginPercent = 10.0
+    var minimumRunMinutes = 20
+    var minimumLiquidityBTC = 0.5
+    var useDayAverages = true
+    var ethminerEnabled = true
+    var uselethEnabled = true
+    var uselethThreads = 0          // 0 = one per CPU core
+
+    // MARK: Power levels (1…10)
+    /// CPU: share of cores mining (7 ≈ 13 of 18 cores on an M5 Max).
+    var cpuPowerLevel = 7
+    /// GPU: share of each second the GPU engine runs (10 = flat out).
+    var gpuPowerLevel = 10
+
+    var cpuPowerFactor: Double { Double(min(10, max(1, cpuPowerLevel))) / 10 }
+    var gpuPowerFactor: Double { Double(min(10, max(1, gpuPowerLevel))) / 10 }
+
+    func cpuThreads(totalCores: Int) -> Int { max(1, Int((Double(totalCores) * cpuPowerFactor).rounded())) }
+
     // MARK: CPU – XMRig / Monero
     var cpuEnabled = true
     var xmrWallet = ""
@@ -98,13 +153,81 @@ struct MinerSettings: Codable, Equatable {
         return settings
     }
 
-    var cpuConfigSignature: String {
-        [xmrWallet, xmrPool, String(xmrPoolTLS), cpuPreset.rawValue, String(cpuCustomThreads),
-         String(cpuPriority), String(cpuYield), workerName].joined(separator: "|")
+    /// Settings that affect how XMRig runs (beyond the job itself).
+    var cpuTuningSignature: String {
+        [String(cpuPowerLevel), String(cpuPriority), String(cpuYield), String(uselethThreads)]
+            .joined(separator: "|")
     }
 
-    var gpuConfigSignature: String {
-        [rvnWallet, rvnPool, workerName].joined(separator: "|")
+    // MARK: Wallets & pools
+
+    /// The address to mine a coin to. Monero and Ravencoin fall back to the original single-coin fields.
+    func wallet(for tag: String) -> String {
+        if let w = wallets[tag]?.trimmingCharacters(in: .whitespaces), !w.isEmpty { return w }
+        switch tag {
+        case "XMR": return xmrWallet.trimmingCharacters(in: .whitespaces)
+        case "RVN": return rvnWallet.trimmingCharacters(in: .whitespaces)
+        default: return ""
+        }
+    }
+
+    /// The pool selected for a coin: the user's choice, else the coin's first preset.
+    func pool(for coin: CoinSpec) -> PoolPreset? {
+        let choice = poolChoice[coin.tag]
+        if choice == "custom", let custom = customPools[coin.tag], !custom.address.isEmpty {
+            return PoolPreset(id: "custom", name: "Custom", address: custom.address, tls: custom.tls,
+                              feePercent: custom.feePercent, userTemplate: custom.userTemplate)
+        }
+        if let choice, let preset = coin.pools.first(where: { $0.id == choice }) { return applyLegacy(preset, coin: coin) }
+        if let first = coin.pools.first { return applyLegacy(first, coin: coin) }
+        if let custom = customPools[coin.tag], !custom.address.isEmpty {
+            return PoolPreset(id: "custom", name: "Custom", address: custom.address, tls: custom.tls,
+                              feePercent: custom.feePercent, userTemplate: custom.userTemplate)
+        }
+        return nil
+    }
+
+    /// v0.1 stored the Monero/Ravencoin pool as free text – honour it for the default preset.
+    private func applyLegacy(_ preset: PoolPreset, coin: CoinSpec) -> PoolPreset {
+        var p = preset
+        if coin.tag == "XMR", preset.id == "supportxmr" {
+            p.address = xmrPool; p.tls = xmrPoolTLS; p.feePercent = xmrPoolFeePercent
+        } else if coin.tag == "RVN", preset.id == "2miners" {
+            p.address = rvnPool; p.feePercent = rvnPoolFeePercent
+        }
+        return p
+    }
+
+    /// Why a mining option can't run yet, or nil if it's ready.
+    func readinessProblem(_ option: MiningOption) -> String? {
+        guard let coin = option.coin else { return "Unknown coin" }
+        guard let pool = pool(for: coin) else { return "Needs a pool" }
+        if option.engine == .useleth && pool.tls { return "UselethMiner can't use TLS pools" }
+        if option.engine == .kawpow && pool.tls { return "kawpow-metal can't use TLS pools" }
+        let hasWallet = !wallet(for: coin.tag).isEmpty
+        let canUseKryptex = pool.acceptsKryptexAccount && !kryptexAccount.trimmingCharacters(in: .whitespaces).isEmpty
+        if !hasWallet && !canUseKryptex { return "Needs a \(coin.tag) wallet" }
+        return nil
+    }
+
+    /// Resolve an option to a concrete job, or nil if it isn't ready.
+    func job(for option: MiningOption) -> MiningJob? {
+        guard readinessProblem(option) == nil, let coin = option.coin, let pool = pool(for: coin) else { return nil }
+        let own = wallet(for: coin.tag)
+        let payTo = own.isEmpty ? kryptexAccount.trimmingCharacters(in: .whitespaces) : own
+        let worker = workerName.isEmpty ? "mac" : workerName
+        return MiningJob(option: option, poolAddress: pool.address, tls: pool.tls, poolFeePercent: pool.feePercent,
+                         login: PoolLogin.build(template: pool.userTemplate, wallet: payTo, worker: worker),
+                         worker: worker)
+    }
+
+    func isEngineEnabled(_ engine: EngineKind) -> Bool {
+        switch engine {
+        case .xmrig: return cpuEnabled
+        case .kawpow: return gpuEnabled
+        case .ethminer: return gpuEnabled && ethminerEnabled
+        case .useleth: return cpuEnabled && gpuEnabled && uselethEnabled
+        }
     }
 }
 
