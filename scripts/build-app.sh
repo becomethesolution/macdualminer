@@ -24,7 +24,7 @@ say() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 die() { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
 [[ "$(uname -s)" == "Darwin" ]] || die "build on macOS"
-[[ "$(uname -m)" == "arm64" ]] || die "build on an Apple Silicon Mac (arm64)"
+[[ "$(uname -m)" == "arm64" ]] || echo "note: building on $(uname -m) – cross-compiling the arm64 app (it runs on Apple Silicon only)"
 command -v swift >/dev/null || die "swift not found – run: xcode-select --install"
 command -v python3 >/dev/null || die "python3 not found – run: xcode-select --install"
 mkdir -p "$CACHE"

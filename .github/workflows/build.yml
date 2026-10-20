@@ -12,7 +12,9 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-latest   # Apple Silicon runner (current macOS image)
+    # GitHub's Apple Silicon runners were unavailable for hours on 2026-10-20 (jobs dropped after 15 min
+    # without a runner), so builds run on the Intel image and cross-compile the arm64 app.
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
 
@@ -22,13 +24,13 @@ jobs:
           swift --version
           uname -m
 
-      - name: Unit tests
+      - name: Unit tests (host architecture)
         run: swift test
 
       - name: Compile with Command Line Tools only (no Xcode)
         run: |
           if [ -d /Library/Developer/CommandLineTools/usr/bin ]; then
-            DEVELOPER_DIR=/Library/Developer/CommandLineTools swift build -c release --product MacDualMiner --scratch-path .build-clt
+            DEVELOPER_DIR=/Library/Developer/CommandLineTools swift build -c release --arch arm64 --product MacDualMiner --scratch-path .build-clt
           else
             echo "Command Line Tools not installed on this runner – skipped"
           fi
