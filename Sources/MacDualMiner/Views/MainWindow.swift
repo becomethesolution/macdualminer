@@ -46,7 +46,7 @@ private struct Sidebar: View {
             }
             .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 12)
 
-            List(selection: Binding<MainTab?>(get: { uiState.mainTab }, set: { if let v = $0 { uiState.mainTab = v } })) {
+            List(selection: Binding<MainTab?>(get: { uiState.mainTab }, set: { if let v = $0, v != uiState.mainTab { uiState.mainTab = v } })) {
                 row(.dashboard, "Dashboard", "gauge.with.dots.needle.67percent")
                 row(.profit, "Profit Check", "chart.bar.xaxis")
                 row(.earnings, "Earnings", "dollarsign.circle")

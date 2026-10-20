@@ -7,82 +7,28 @@ struct ProfitCheckView: View {
     @Environment(UIState.self) private var uiState
 
     var body: some View {
-        @Bindable var ui = uiState
         let ranked = coordinator.ranked
-        let rows = ui.showIneligibleCoins ? ranked : ranked.filter(\.isEligible)
+        let rows = uiState.showIneligibleCoins ? ranked : ranked.filter(\.isEligible)
         let best = ProfitPlanner.bestPlan(ranked, skipUnprofitable: false)
-        VStack(alignment: .leading, spacing: 12) {
-            summary(best: best)
-            Table(rows, selection: $ui.profitSelection) {
-                TableColumn("Coin") { r in
-                    VStack(alignment: .leading, spacing: 1) {
-                        HStack(spacing: 4) {
-                            Text(r.option.coinTag).fontWeight(.semibold)
-                            if r.experimental {
-                                Text("beta").font(.caption2).padding(.horizontal, 4)
-                                    .background(.orange.opacity(0.2), in: Capsule())
-                            }
+        // A plain ScrollView of rows rather than SwiftUI's Table: Table's selection binding fed back into
+        // shared state on every update and blanked the whole window in 0.3.0.
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                summary(best: best)
+                Panel(title: "All coins this Mac can mine", systemImage: "list.bullet.rectangle") {
+                    VStack(spacing: 0) {
+                        ProfitHeaderRow()
+                        Divider()
+                        ForEach(rows) { r in
+                            ProfitRow(r: r)
+                            Divider().opacity(0.5)
                         }
-                        Text(r.coinName).font(.caption).foregroundStyle(.secondary)
                     }
                 }
-                .width(min: 90, ideal: 120)
-                TableColumn("Algorithm") { r in Text(r.algorithm.rawValue) }
-                    .width(min: 70, ideal: 80)
-                TableColumn("Engine") { r in
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(r.option.engine.displayName)
-                        Text(r.option.engine.deviceLabel).font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                .width(min: 90, ideal: 110)
-                TableColumn("Your hashrate") { r in
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(Format.hashrate(r.estimate.total)).monospacedDigit()
-                        Text(r.estimate.source.label).font(.caption)
-                            .foregroundStyle(r.estimate.source == .reference ? Color.orange : Color.secondary)
-                            .help(r.estimate.note ?? "")
-                    }
-                }
-                .width(min: 90, ideal: 120)
-                TableColumn("Mined / day") { r in
-                    Text(r.coinsPerDay > 0 ? Format.coins(r.coinsPerDay, ticker: r.option.coinTag) : "—").monospacedDigit()
-                }
-                .width(min: 90, ideal: 120)
-                TableColumn("Net / day") { r in
-                    VStack(alignment: .trailing, spacing: 1) {
-                        Text(Format.usd(r.netUSDPerDay)).fontWeight(.semibold).monospacedDigit()
-                            .foregroundStyle(r.netUSDPerDay >= 0 ? Color.green : Color.red)
-                        Text("\(Format.usd(r.grossUSDPerDay)) − \(Format.usd(r.powerUSDPerDay)) power")
-                            .font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                    }
-                }
-                .width(min: 110, ideal: 150)
-                TableColumn("24h volume") { r in
-                    Text(r.volumeBTC.map { String(format: "%.2f BTC", $0) } ?? "—").monospacedDigit()
-                        .foregroundStyle((r.volumeBTC ?? 0) < coordinator.settings.minimumLiquidityBTC ? Color.orange : Color.primary)
-                }
-                .width(min: 70, ideal: 90)
-                TableColumn("Status") { r in
-                    Label(r.status.label, systemImage: r.isEligible ? "checkmark.circle" : "exclamationmark.circle")
-                        .foregroundStyle(r.isEligible ? Color.green : Color.secondary)
-                        .font(.caption)
-                }
-                .width(min: 110, ideal: 150)
-                TableColumn("") { r in
-                    let running = coordinator.engines.contains { $0.job?.option == r.option && $0.isMining }
-                    if running {
-                        Text("Mining").font(.caption.weight(.semibold)).foregroundStyle(.green)
-                    } else {
-                        Button("Mine") { coordinator.mine(r.option) }
-                            .disabled(!r.isEligible)
-                    }
-                }
-                .width(56)
+                footer
             }
-            footer
+            .padding(20)
         }
-        .padding(18)
     }
 
     private func summary(best: MiningPlan) -> some View {
@@ -113,7 +59,7 @@ struct ProfitCheckView: View {
                 if let progress = coordinator.benchmarkProgress {
                     ProgressView(value: progress).frame(width: 200)
                 }
-                Toggle("Show coins that aren't ready", isOn: Binding(get: { uiState.showIneligibleCoins }, set: { uiState.showIneligibleCoins = $0 })).toggleStyle(.checkbox).font(.caption)
+                Toggle("Show coins that aren't ready", isOn: Binding(get: { uiState.showIneligibleCoins }, set: { if uiState.showIneligibleCoins != $0 { uiState.showIneligibleCoins = $0 } })).toggleStyle(.checkbox).font(.caption)
             }
         }
         .padding(12)
@@ -137,5 +83,112 @@ struct ProfitCheckView: View {
         }
         .font(.caption)
         .foregroundStyle(.secondary)
+    }
+}
+
+private enum ProfitColumns {
+    static let coin: CGFloat = 150
+    static let algorithm: CGFloat = 90
+    static let engine: CGFloat = 120
+    static let hashrate: CGFloat = 130
+    static let mined: CGFloat = 130
+    static let net: CGFloat = 170
+    static let volume: CGFloat = 90
+    static let action: CGFloat = 64
+}
+
+private struct ProfitHeaderRow: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            cell("Coin", ProfitColumns.coin)
+            cell("Algorithm", ProfitColumns.algorithm)
+            cell("Engine", ProfitColumns.engine)
+            cell("Your hashrate", ProfitColumns.hashrate)
+            cell("Mined / day", ProfitColumns.mined)
+            cell("Net / day", ProfitColumns.net, alignment: .trailing)
+            cell("24h volume", ProfitColumns.volume, alignment: .trailing)
+            Text("STATUS").frame(maxWidth: .infinity, alignment: .leading)
+            Color.clear.frame(width: ProfitColumns.action)
+        }
+        .font(.caption2.weight(.bold))
+        .foregroundStyle(.secondary)
+        .padding(.vertical, 8)
+    }
+
+    private func cell(_ title: String, _ width: CGFloat, alignment: Alignment = .leading) -> some View {
+        Text(title.uppercased()).frame(width: width, alignment: alignment)
+    }
+}
+
+private struct ProfitRow: View {
+    @Environment(MiningCoordinator.self) private var coordinator
+    let r: RankedOption
+
+    var body: some View {
+        let running = coordinator.engines.contains { $0.job?.option == r.option && $0.isMining }
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(r.option.coinTag).fontWeight(.semibold)
+                    if r.experimental {
+                        Text("beta").font(.caption2).padding(.horizontal, 4)
+                            .background(Theme.accent.opacity(0.2), in: Capsule())
+                    }
+                }
+                Text(r.coinName).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            .frame(width: ProfitColumns.coin, alignment: .leading)
+
+            Text(r.algorithm.rawValue).frame(width: ProfitColumns.algorithm, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(r.option.engine.displayName).lineLimit(1)
+                Text(r.option.engine.deviceLabel).font(.caption).foregroundStyle(.secondary)
+            }
+            .frame(width: ProfitColumns.engine, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Format.hashrate(r.estimate.total)).monospacedDigit()
+                Text(r.estimate.source.label).font(.caption).lineLimit(1)
+                    .foregroundStyle(r.estimate.source == .reference ? Theme.accent : Color.secondary)
+            }
+            .frame(width: ProfitColumns.hashrate, alignment: .leading)
+            .help(r.estimate.note ?? "")
+
+            Text(r.coinsPerDay > 0 ? Format.coins(r.coinsPerDay, ticker: r.option.coinTag) : "—")
+                .monospacedDigit().lineLimit(1)
+                .frame(width: ProfitColumns.mined, alignment: .leading)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(Format.usd(r.netUSDPerDay)).fontWeight(.semibold).monospacedDigit()
+                    .foregroundStyle(Theme.money(r.netUSDPerDay))
+                Text("\(Format.usd(r.grossUSDPerDay)) − \(Format.usd(r.powerUSDPerDay)) power")
+                    .font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+            }
+            .frame(width: ProfitColumns.net, alignment: .trailing)
+
+            Text(r.volumeBTC.map { String(format: "%.2f BTC", $0) } ?? "—")
+                .monospacedDigit()
+                .foregroundStyle((r.volumeBTC ?? 0) < coordinator.settings.minimumLiquidityBTC ? Theme.accent : Color.primary)
+                .frame(width: ProfitColumns.volume, alignment: .trailing)
+
+            Label(r.status.label, systemImage: r.isEligible ? "checkmark.circle" : "exclamationmark.circle")
+                .font(.caption).lineLimit(2)
+                .foregroundStyle(r.isEligible ? Theme.profit : Color.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Group {
+                if running {
+                    Text("Mining").font(.caption.weight(.semibold)).foregroundStyle(Theme.profit)
+                } else {
+                    Button("Mine") { coordinator.mine(r.option) }
+                        .disabled(!r.isEligible)
+                }
+            }
+            .frame(width: ProfitColumns.action)
+        }
+        .font(.callout)
+        .padding(.vertical, 7)
+        .opacity(r.isEligible ? 1 : 0.65)
     }
 }

@@ -13,7 +13,6 @@ final class UIState {
     var mainTab: MainTab = .dashboard
     var logsEngine: EngineKind = .xmrig
     var showIneligibleCoins = true
-    var profitSelection: String?
     var loginError: String?
     var launchAtLogin = SMAppService.mainApp.status == .enabled
     var chartHours: Double = 6
