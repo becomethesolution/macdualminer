@@ -1,6 +1,6 @@
 # MacDualMiner
 
-A lightweight native macOS app that mines on **both halves of an Apple Silicon chip at once**, tuned for the **M5 Max**. It runs four engines and **automatically picks the most profitable coin for each part of the chip**.
+A lightweight native macOS app that mines on **both halves of an Apple Silicon chip at once**. It runs on any M1–M5 Mac with macOS 15 or later and is tuned for the **M5 Max**. It runs four engines and **automatically picks the most profitable coin for each part of the chip**.
 
 | Engine | Part of the chip | Algorithm | Coins in the profit check | How it ships |
 |---|---|---|---|---|
@@ -50,10 +50,38 @@ Engine choices and reference hashrates come from the Mac tests on [cryptominingo
 
 ## Requirements
 
-- Apple Silicon Mac (built and tuned for M5 Max; any M-series should work)
-- macOS 15 Sequoia or later
-- Xcode or the Command Line Tools: `xcode-select --install`
-- Wallet addresses for the coins you want to mine (from wallets you control), or a Kryptex account
+**To run the app**
+
+- An Apple Silicon Mac: any M1, M2, M3, M4 or M5 chip. Intel Macs are not supported, because the app and all its engines are arm64-only.
+- macOS 15 Sequoia or later. The KawPow GPU engine needs macOS 15.
+- About 3 GB of free memory for CPU mining (XMRig's RandomX dataset is ~2.3 GB). GPU mining needs more: about 5 GB for KawPow and 7–8 GB for Ethash, because their DAGs grow over time.
+- Wallet addresses for the coins you want to mine (from wallets you control), or a Kryptex account.
+- An internet connection, for the pools, WhatToMine network data and coin prices.
+
+**To build it yourself**
+
+- Xcode, or just the Command Line Tools (`xcode-select --install`).
+
+## Compatibility
+
+| | M1 / M2 / M3 / M4 family | M5 | M5 Pro / M5 Max |
+|---|---|---|---|
+| App, dashboard, profit check | ✅ | ✅ | ✅ |
+| XMRig – CPU (RandomX, GhostRider) | ✅ | ✅ | ✅ tested on M5 Max (9.0 kH/s) |
+| kawpow-metal – GPU (KawPow) | ✅ listed by its author | ⚠️ not tested yet | ✅ runs on M5 Max |
+| ethminer-m1 – GPU (Ethash) | ✅ | ✅ | ✅ tested on M5 Max (41.6 MH/s) |
+| UselethMiner – CPU + GPU (Ethash) | ✅ tested up to M4 Max | ⚠️ not tested yet | ⚠️ not tested yet |
+| Starting hashrates without a benchmark | M1 Ultra, M3 Max, M3 Ultra, M4 Max | – | M5 Max |
+
+**What's tuned for M5:**
+
+- CPU threads and the 1–10 power levels come from the detected 18-core layout (6 super + 12 performance).
+- RandomX runs in fast mode, which suits the M5 Max's memory.
+- The profit check starts from M5 Max hashrates measured on [cryptominingonmacs.com](https://cryptominingonmacs.com/viewtopic.php?t=169).
+
+**What isn't:** the mining engines are general Apple Silicon builds. None of them is rewritten for M5-specific hardware such as the GPU's neural accelerators.
+
+**Other Macs:** the app reads each Mac's own core counts, GPU and memory, so it works on any Apple Silicon Mac. On chips without a reference hashrate, click **Benchmark this Mac** on the Profit Check tab and the profit check uses your own numbers.
 
 ## Build & install
 

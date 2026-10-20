@@ -10,15 +10,17 @@
      xattr -dr com.apple.quarantine /Applications/MacDualMiner.app
      ```
 4. Open **Settings (⌘,)**:
-   - Add your Monero and/or Ravencoin wallet address.
-   - Set your electricity price per kWh.
-5. Press **Start Mining**.
+   - Under **Coins & Wallets**, add a wallet for each coin you want to mine, or a Kryptex username.
+   - Under **Earnings**, set your electricity price per kWh.
+5. On the **Profit Check** tab, click **Benchmark this Mac**, then press **Start Mining**.
 
-**Requirements:** Apple Silicon Mac, macOS 15 or later. Tuned for the M5 Max.
+**Requirements:** an Apple Silicon Mac (any M1–M5; not Intel) running macOS 15 Sequoia or later, with about 3 GB of free memory for CPU mining and 5–8 GB for GPU mining. Tuned for the M5 Max. For which engines have been tested on which chips, see the [compatibility table](https://github.com/becomethesolution/macdualminer#compatibility).
 
 Bundled engines:
 
 - XMRig, the official macOS arm64 release, SHA-256 verified at build time.
 - kawpow-metal, built from source at a pinned commit.
+- ethminer-m1, the release binary pinned by SHA-256.
+- UselethMiner is optional: download it in-app from Settings › Engines.
 
 Prefer to build it yourself? Clone the repo and run `INSTALL=1 scripts/build-app.sh`.
