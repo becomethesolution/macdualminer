@@ -178,7 +178,7 @@ private struct DeviceRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(device == .cpu ? "CPU · \(hw.chipName)" : "GPU · \(hw.gpuCores.map { "\($0)-core " } ?? "")\(hw.gpuName)")
                     .font(.headline).lineLimit(1)
-                Text(device == .cpu ? "\(hw.totalCores) cores" + (hw.performanceCores > 0 ? " (\(hw.superCores) super + \(hw.performanceCores) performance)" : "") : "Metal \(coordinator.hardware.memoryGB) GB unified memory")
+                Text(device == .cpu ? hw.coreBreakdown : "Metal · \(coordinator.hardware.memoryGB) GB unified memory")
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 statusPill(running: running)
             }

@@ -80,6 +80,7 @@ final class ParsingTests: XCTestCase {
 
     func testXMRigConfigThreadsFollowCPUPowerLevel() {
         var s = MinerSettings()
+        s.workerName = "m5max"
         s.cpuPowerLevel = 7
         s.wallets["ZEPH"] = "ZEPHwallet"
         let hw = HardwareInfo(chipName: "Apple M5 Max", totalCores: 18, superCores: 6, performanceCores: 12, gpuName: "M5 Max", memoryGB: 48)
@@ -163,6 +164,7 @@ final class ProfitTests: XCTestCase {
 
     func testRankingFlagsLiquidityAndMissingWallets() {
         var s = MinerSettings()
+        s.workerName = "m5max"
         s.wallets = ["XMR": "4wallet", "RVN": "Rwallet"]
         let ranked = ProfitPlanner.rank(inputs(s))
         let byID = Dictionary(uniqueKeysWithValues: ranked.map { ($0.id, $0) })
@@ -175,6 +177,7 @@ final class ProfitTests: XCTestCase {
 
     func testBestPlanUsesKryptexAccountAndPicksBetterKawPowCoin() {
         var s = MinerSettings()
+        s.workerName = "m5max"
         s.wallets = ["XMR": "4wallet", "RVN": "Rwallet"]
         s.kryptexAccount = "vincent"
         let plan = ProfitPlanner.bestPlan(ProfitPlanner.rank(inputs(s)), skipUnprofitable: false)
@@ -192,6 +195,7 @@ final class ProfitTests: XCTestCase {
 
     func testPowerLevels() {
         var s = MinerSettings()
+        s.workerName = "m5max"
         s.cpuPowerLevel = 10
         XCTAssertEqual(s.cpuThreads(totalCores: 18), 18)
         s.cpuPowerLevel = 1
@@ -262,6 +266,7 @@ final class UpdateAndHistoryTests: XCTestCase {
 
     func testGhostRiderConfig() {
         var s = MinerSettings()
+        s.workerName = "m5max"
         s.cpuPowerLevel = 5
         s.wallets["RTM"] = "RTMwallet"
         s.poolChoice["RTM"] = "custom"
@@ -280,5 +285,31 @@ final class UpdateAndHistoryTests: XCTestCase {
                               memoryGB: 128, computerName: "Ram's MacBook Pro", modelName: "MacBook Pro (16-inch, 2026)",
                               modelIdentifier: "Mac17,6", gpuCores: 40)
         XCTAssertEqual(hw.detailLine, "MacBook Pro (16-inch, 2026) (Mac17,6) · Apple M5 Max · 18 CPU cores (6 + 12) · 40-core GPU · 128 GB")
+    }
+}
+
+final class HardwareTests: XCTestCase {
+    func testCoreBreakdownUsesClusterNames() {
+        var m5 = HardwareInfo(chipName: "Apple M5 Max", totalCores: 18, superCores: 6, performanceCores: 12, gpuName: "", memoryGB: 128)
+        m5.level0Name = "Super"; m5.level1Name = "Performance"
+        XCTAssertEqual(m5.coreBreakdown, "18 cores (6 super + 12 performance)")
+        let m4 = HardwareInfo(chipName: "Apple M4", totalCores: 10, superCores: 4, performanceCores: 6, gpuName: "", memoryGB: 32)
+        XCTAssertEqual(m4.coreBreakdown, "10 cores (4 performance + 6 efficiency)")
+    }
+
+    func testDefaultWorkerName() {
+        let hw = HardwareInfo(chipName: "Apple M5 Max", totalCores: 18, superCores: 6, performanceCores: 12, gpuName: "", memoryGB: 128,
+                              computerName: "Ram's MacBook Pro")
+        XCTAssertEqual(hw.defaultWorkerName, "RamsMacBookPro")
+        var s = MinerSettings()
+        s.workerName = "  rig1 "
+        XCTAssertEqual(s.effectiveWorkerName, "rig1")
+    }
+
+    func testReferenceLookupIsExactChip() {
+        XCTAssertEqual(ReferenceHashrates.lookup(chip: "Apple M4", engine: .xmrig)?.hashrate, 3_510)
+        XCTAssertEqual(ReferenceHashrates.lookup(chip: "Apple M4 Max", engine: .xmrig)?.hashrate, 8_390)
+        XCTAssertNil(ReferenceHashrates.lookup(chip: "Apple M4 Pro", engine: .xmrig))
+        XCTAssertEqual(ReferenceHashrates.lookup(chip: "Apple M2 Max", engine: .ethminer)?.hashrate, 19_870_000)
     }
 }

@@ -121,7 +121,13 @@ struct MinerSettings: Codable, Equatable {
     var rvnPoolFeePercent = 1.0
 
     // MARK: Shared
-    var workerName = "m5max"
+    /// Empty = use this Mac's name (HardwareInfo.defaultWorkerName). Saved values from 0.1–0.3.1 are kept.
+    var workerName = ""
+
+    var effectiveWorkerName: String {
+        let trimmed = workerName.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty ? HardwareInfo.current.defaultWorkerName : trimmed
+    }
 
     // MARK: Rules
     var pauseOnBattery = true
@@ -220,7 +226,7 @@ struct MinerSettings: Codable, Equatable {
         guard readinessProblem(option) == nil, let coin = option.coin, let pool = pool(for: coin) else { return nil }
         let own = wallet(for: coin.tag)
         let payTo = own.isEmpty ? kryptexAccount.trimmingCharacters(in: .whitespaces) : own
-        let worker = workerName.isEmpty ? "mac" : workerName
+        let worker = effectiveWorkerName
         return MiningJob(option: option, poolAddress: pool.address, tls: pool.tls, poolFeePercent: pool.feePercent,
                          login: PoolLogin.build(template: pool.userTemplate, wallet: payTo, worker: worker),
                          worker: worker)

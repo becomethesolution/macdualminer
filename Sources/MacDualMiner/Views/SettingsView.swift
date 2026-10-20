@@ -68,7 +68,7 @@ private struct CoinsSettings: View {
         @Bindable var store = coordinator.store
         Form {
             Section {
-                TextField("Worker name", text: $store.settings.workerName)
+                TextField("Worker name", text: $store.settings.workerName, prompt: Text(HardwareInfo.current.defaultWorkerName))
                 TextField("Kryptex account (username)", text: $store.settings.kryptexAccount, prompt: Text("optional"))
                 Text("Coins on a Kryptex pool with no wallet of their own are paid to this Kryptex account, which can auto-convert to BTC (not QUAI). Use your Kryptex username rather than an email for ethminer and UselethMiner.")
                     .font(.caption).foregroundStyle(.secondary)

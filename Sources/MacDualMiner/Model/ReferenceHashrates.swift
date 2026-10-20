@@ -43,6 +43,20 @@ enum ReferenceHashrates {
         ReferenceHashrate(chip: "Apple M3 Max", engine: .xmrig, hashrate: 7_250, gpuHashrate: nil,
                           note: "XMRig 6.20.0", source: "https://cryptominingonmacs.com/viewtopic.php?t=161"),
 
+        // 2025 MacBook Air 15" M4, 10-CPU (4P + 6E) – t=165
+        ReferenceHashrate(chip: "Apple M4", engine: .xmrig, hashrate: 3_510, gpuHashrate: nil,
+                          note: "XMRig 6.22.2 (MacBook Air, fanless – drops when hot)", source: "https://cryptominingonmacs.com/viewtopic.php?t=165"),
+
+        // MacBook Pro 16" M2 Max – t=160
+        ReferenceHashrate(chip: "Apple M2 Max", engine: .xmrig, hashrate: 4_416, gpuHashrate: nil,
+                          note: "XMRig 6.19.3", source: "https://cryptominingonmacs.com/viewtopic.php?t=160"),
+        ReferenceHashrate(chip: "Apple M2 Max", engine: .ethminer, hashrate: 19_870_000, gpuHashrate: nil,
+                          note: "ethminer-m1 0.19, OpenCL", source: "https://cryptominingonmacs.com/viewtopic.php?t=160"),
+
+        // Mac mini M2 (12-core CPU listed) – t=158
+        ReferenceHashrate(chip: "Apple M2", engine: .xmrig, hashrate: 4_436, gpuHashrate: nil,
+                          note: "XMRig (Mac mini)", source: "https://cryptominingonmacs.com/viewtopic.php?t=158"),
+
         // Mac Studio M1 Ultra – t=156
         ReferenceHashrate(chip: "Apple M1 Ultra", engine: .xmrig, hashrate: 5_800, gpuHashrate: nil,
                           note: "XMRig", source: "https://cryptominingonmacs.com/viewtopic.php?t=156"),
@@ -54,7 +68,8 @@ enum ReferenceHashrates {
     /// References are all for each engine's main algorithm (RandomX for XMRig).
     static func lookup(chip: String, engine: EngineKind, algorithm: Algorithm? = nil) -> ReferenceHashrate? {
         if let algorithm, algorithm != engine.primaryAlgorithm { return nil }
-        return all.filter { $0.engine == engine && chip.localizedCaseInsensitiveContains($0.chip) }
-            .max { $0.chip.count < $1.chip.count }
+        // Exact chip family only: an "Apple M4 Max" must not use plain "Apple M4" numbers or vice versa.
+        let normalized = chip.trimmingCharacters(in: .whitespaces).lowercased()
+        return all.first { $0.engine == engine && normalized == $0.chip.lowercased() }
     }
 }

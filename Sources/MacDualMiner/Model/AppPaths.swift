@@ -59,6 +59,23 @@ struct HardwareInfo {
     /// e.g. "Mac17,6".
     var modelIdentifier: String = ""
     var gpuCores: Int? = nil
+    /// macOS's names for the two core clusters (hw.perflevelN.name): "Super"/"Performance" on M5 Pro/Max,
+    /// "Performance"/"Efficiency" on M1–M4 and the base M5.
+    var level0Name: String = "Performance"
+    var level1Name: String = "Efficiency"
+
+    /// "18 cores (6 super + 12 performance)" / "10 cores (4 performance + 6 efficiency)"
+    var coreBreakdown: String {
+        guard performanceCores > 0 else { return "\(totalCores) cores" }
+        return "\(totalCores) cores (\(superCores) \(level0Name.lowercased()) + \(performanceCores) \(level1Name.lowercased()))"
+    }
+
+    /// Pool worker name: this Mac's name reduced to letters and digits ("Ram's MacBook Pro" → "RamsMacBookPro").
+    var defaultWorkerName: String {
+        let source = computerName.isEmpty ? (modelIdentifier.isEmpty ? chipName : modelIdentifier) : computerName
+        let cleaned = String(source.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) && $0.isASCII }.map(Character.init))
+        return cleaned.isEmpty ? "mac" : String(cleaned.prefix(24))
+    }
 
     /// "MacBook Pro (16-inch, 2026) · Apple M5 Max · 18 CPU cores (6 + 12) · 40-core GPU · 128 GB"
     var detailLine: String {
@@ -88,7 +105,9 @@ struct HardwareInfo {
             computerName: (SCDynamicStoreCopyComputerName(nil, nil) as String?) ?? ProcessInfo.processInfo.hostName,
             modelName: IORegistryInfo.productName() ?? "",
             modelIdentifier: sysctlString("hw.model") ?? "",
-            gpuCores: IORegistryInfo.gpuCoreCount()
+            gpuCores: IORegistryInfo.gpuCoreCount(),
+            level0Name: sysctlString("hw.perflevel0.name") ?? "Performance",
+            level1Name: sysctlString("hw.perflevel1.name") ?? "Efficiency"
         )
     }()
 

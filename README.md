@@ -1,6 +1,6 @@
 # MacDualMiner
 
-A lightweight native macOS app that mines on **both halves of an Apple Silicon chip at once**. It runs on any M1–M5 Mac with macOS 15 or later and is tuned for the **M5 Max**. It runs four engines and **automatically picks the most profitable coin for each part of the chip**.
+A lightweight native macOS app that mines on **both halves of an Apple Silicon chip at once**, with a **NiceHash-like style and interface**: one big Start button, live profitability, per-device controls and automatic switching to the most profitable coin. It runs on any M1–M5 Mac with macOS 15 or later and is tuned for the **M5 Max**. It runs four engines and **automatically picks the most profitable coin for each part of the chip**.
 
 | Engine | Part of the chip | Algorithm | Coins in the profit check | How it ships |
 |---|---|---|---|---|
@@ -17,7 +17,7 @@ Engine choices and reference hashrates come from the Mac tests on [cryptominingo
 
 ## Features
 
-- **Mining-dashboard interface:** a sidebar, a large Start/Stop button with live profitability, and one row per device (CPU and GPU) showing coin, algorithm, engine, hashrate, watts and shares, with an on/off switch and power slider for each. It also shows your Mac's own name, model and chip details, and has a dark look by default (switchable in Settings › General).
+- **NiceHash-like interface:** a sidebar, a large Start/Stop button with live profitability, and one row per device (CPU and GPU) showing coin, algorithm, engine, hashrate, watts and shares, with an on/off switch and power slider for each. It also shows your Mac's own name, model and chip details, and has a dark look by default (switchable in Settings › General).
 - **Power vs Earnings chart:** power draw against gross and net $/day over the last 1, 6 or 24 hours. A point is recorded every 30 seconds and the history is kept between launches; hover to read exact values.
 - **Update check:** looks for new GitHub releases at launch and every 6 hours. *Install & Restart* downloads the release, checks it's the right app, version and code signature, swaps it in and relaunches.
 - **Profit Check tab.** Every coin the engines can mine, with:
@@ -71,7 +71,7 @@ Engine choices and reference hashrates come from the Mac tests on [cryptominingo
 | kawpow-metal – GPU (KawPow) | ✅ listed by its author | ⚠️ not tested yet | ✅ runs on M5 Max |
 | ethminer-m1 – GPU (Ethash) | ✅ | ✅ | ✅ tested on M5 Max (41.6 MH/s) |
 | UselethMiner – CPU + GPU (Ethash) | ✅ tested up to M4 Max | ⚠️ not tested yet | ⚠️ not tested yet |
-| Starting hashrates without a benchmark | M1 Ultra, M3 Max, M3 Ultra, M4 Max | – | M5 Max |
+| Starting hashrates without a benchmark | M1 Ultra, M2, M2 Max, M3 Max, M3 Ultra, M4, M4 Max | – | M5 Max |
 
 **What's tuned for M5:**
 
@@ -154,6 +154,12 @@ scripts/build-app.sh         Fetch + verify + build engines, assemble .app
 scripts/patch_kawpow.py      Makes kawpow-metal bundle-friendly
 .github/workflows/build.yml  CI: tests + app build on macOS; releases on v* tags
 ```
+
+## More guides
+
+Mac mining results, engine tests and guides: **[cryptominingonmacs.com](https://cryptominingonmacs.com)**.
+
+MacDualMiner is an independent project. It is not affiliated with or endorsed by NiceHash; the name is used only to describe the style of the interface.
 
 ## License
 
