@@ -40,12 +40,18 @@ final class MinerProcess {
 
     /// Share of time the engine is allowed to run (0.1…1). Below 1 the process is paused and resumed
     /// (SIGSTOP/SIGCONT) in short bursts – a universal power limiter for engines with no intensity setting.
-    var dutyCycle: Double = 1 {
-        didSet {
-            dutyCycle = min(1, max(0.1, dutyCycle))
-            if dutyCycle != oldValue { updateThrottle() }
+    /// (No `didSet` that re-assigns the property: under @Observable that recursed forever – the 0.2.0 launch crash.)
+    var dutyCycle: Double {
+        get { storedDutyCycle }
+        set {
+            let clamped = min(1, max(0.1, newValue))
+            guard clamped != storedDutyCycle else { return }
+            storedDutyCycle = clamped
+            updateThrottle()
         }
     }
+
+    @ObservationIgnored private var storedDutyCycle: Double = 1
 
     @ObservationIgnored private var throttleTask: Task<Void, Never>?
 

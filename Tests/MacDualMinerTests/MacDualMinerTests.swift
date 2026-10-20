@@ -207,3 +207,17 @@ final class ProfitTests: XCTestCase {
         XCTAssertNil(ReferenceHashrates.lookup(chip: "Apple M5", engine: .xmrig))
     }
 }
+
+final class MinerProcessTests: XCTestCase {
+    /// Regression test for the 0.2.0 crash on launch (infinite recursion setting the duty cycle).
+    @MainActor func testDutyCycleClampsWithoutRecursing() {
+        let p = MinerProcess(name: "test")
+        p.dutyCycle = 0.5
+        XCTAssertEqual(p.dutyCycle, 0.5)
+        p.dutyCycle = 0.5            // same value again: no-op
+        p.dutyCycle = 5
+        XCTAssertEqual(p.dutyCycle, 1)
+        p.dutyCycle = 0
+        XCTAssertEqual(p.dutyCycle, 0.1)
+    }
+}
