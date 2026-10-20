@@ -65,6 +65,9 @@ final class KawpowController: MiningEngine {
 
     func parse(_ line: String) {
         if let mh = Self.parseMegahash(line) {
+            // The first reading after each new job is timed over a single tiny batch and is wildly high
+            // ("16169.29 MH/s | 65536 hashes"); skip it so it can't inflate the average or a benchmark.
+            guard Self.isSettledSample(line) else { return }
             let hs = mh * 1_000_000
             hashrate = hs
             averageHashrate = averageHashrate.map { $0 * 0.8 + hs * 0.2 } ?? hs
@@ -92,6 +95,13 @@ final class KawpowController: MiningEngine {
         guard let range = line.range(of: #"([0-9]+(?:\.[0-9]+)?)\s*MH/s"#, options: .regularExpression) else { return nil }
         let token = line[range].replacingOccurrences(of: "MH/s", with: "").trimmingCharacters(in: .whitespaces)
         return Double(token)
+    }
+
+    /// False for the first batch of a job: "16169.29 MH/s | 65536 hashes | 0.0h".
+    nonisolated static func isSettledSample(_ line: String) -> Bool {
+        guard let range = line.range(of: #"\|\s*([0-9]+)\s+hashes"#, options: .regularExpression) else { return true }
+        let hashes = Int(line[range].filter(\.isNumber)) ?? 0
+        return hashes > 1_000_000
     }
 
     /// "  [#####-----]  45.0% (12s)" → 45.0

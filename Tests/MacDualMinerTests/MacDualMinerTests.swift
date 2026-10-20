@@ -344,11 +344,25 @@ final class BenchmarkFileTests: XCTestCase {
         let legacy = #"{"xmrig":{"cpuHashrate":2700,"gpuHashrate":0,"date":"2026-10-20T22:40:00Z","coinTag":"XMR","fromLiveMining":true},"kawpow":{"cpuHashrate":0,"gpuHashrate":33260000,"date":"2026-10-20T22:40:00Z","coinTag":"RVN","fromLiveMining":false}}"#
         let decoded = BenchmarkStore.decode(Data(legacy.utf8))
         XCTAssertNil(decoded[EngineAlgo(.xmrig, .randomX)])
-        XCTAssertEqual(decoded[EngineAlgo(.kawpow, .kawPow)]?.gpuHashrate, 33_260_000)
+        XCTAssertNil(decoded[EngineAlgo(.kawpow, .kawPow)])   // may hold the first-batch spike
     }
 
     func testVersion2FileKeepsEverything() {
         let v2 = #"{"version":2,"results":{"xmrig:RandomX":{"cpuHashrate":8900,"gpuHashrate":0,"date":"2026-10-20T22:40:00Z","coinTag":"XMR","fromLiveMining":true}}}"#
         XCTAssertEqual(BenchmarkStore.decode(Data(v2.utf8))[EngineAlgo(.xmrig, .randomX)]?.cpuHashrate, 8_900)
+    }
+
+    func testVersion2DropsKawpowVersion3KeepsIt() {
+        let body = #"{"kawpow:KawPow":{"cpuHashrate":0,"gpuHashrate":191000000,"date":"2026-10-20T23:10:00Z","coinTag":"RVN","fromLiveMining":false}}"#
+        XCTAssertNil(BenchmarkStore.decode(Data(#"{"version":2,"results":\#(body)}"#.utf8))[EngineAlgo(.kawpow, .kawPow)])
+        XCTAssertNotNil(BenchmarkStore.decode(Data(#"{"version":3,"results":\#(body)}"#.utf8))[EngineAlgo(.kawpow, .kawPow)])
+    }
+}
+
+final class KawpowParsingTests: XCTestCase {
+    func testFirstBatchOfAJobIsIgnored() {
+        XCTAssertFalse(KawpowController.isSettledSample("  16169.29 MH/s | 65536 hashes | 0.0h"))
+        XCTAssertTrue(KawpowController.isSettledSample("  42.24 MH/s | 340852736 hashes | 0.0h"))
+        XCTAssertTrue(KawpowController.isSettledSample("  42.24 MH/s"))
     }
 }
