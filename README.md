@@ -15,6 +15,20 @@ Engine choices and reference hashrates come from the Mac tests on [cryptominingo
 
 ---
 
+## Screenshots
+
+Real numbers from a 2026 MacBook Pro 16" with an M5 Max (18-core CPU, 40-core GPU, 128 GB), mining Monero on the CPU and Ravencoin on the GPU at $0.17/kWh electricity.
+
+**Dashboard while mining.** This view shows the live profitability after electricity, both parts of the chip with their coin, engine, hashrate, watts and shares, and the power vs earnings chart. kawpow-metal reached about 31–33 MH/s on the M5 Max GPU.
+
+![MacDualMiner dashboard on an M5 Max mining Monero on the CPU and Ravencoin on the GPU](docs/screenshots/macdualminer-dashboard-m5-max-cpu-gpu-mining.webp)
+
+**Profit Check.** Every coin the bundled engines can mine is ranked by net USD per day. Each row shows the coin's algorithm, engine and part of the chip, your hashrate (live, benchmarked or the cryptominingonmacs.com reference), coins mined per day, 24h trading volume and whether it's ready to mine.
+
+![MacDualMiner profit check ranking coins by algorithm, engine and net USD per day on an M5 Max](docs/screenshots/macdualminer-profit-check-coins-algorithms-m5-max.webp)
+
+The XMRig hashrate in the Profit Check (2.7 kH/s) was measured while the GPU was also mining, which roughly halves CPU speed on the M5 Max. On its own, XMRig does about 8.9 kH/s.
+
 ## Features
 
 - **NiceHash-like interface:** a sidebar, a large Start/Stop button with live profitability, and one row per device (CPU and GPU) showing coin, algorithm, engine, hashrate, watts and shares, with an on/off switch and power slider for each. It also shows your Mac's own name, model and chip details, and has a dark look by default (switchable in Settings › General).
