@@ -189,6 +189,7 @@ private struct SwitchingSettings: View {
                     Text("BTC of 24h trading volume")
                 }
                 Toggle("Use 24-hour averages (steadier than live values)", isOn: $store.settings.useDayAverages)
+                Toggle("Pause a device when every coin on it would lose money after electricity", isOn: $store.settings.pauseUnprofitable)
                 Text("Every switch on the GPU rebuilds a multi-GB DAG (about a minute of no hashing), so the margin and minimum run time stop it flip-flopping between coins that are almost equal.")
                     .font(.caption).foregroundStyle(.secondary)
             }

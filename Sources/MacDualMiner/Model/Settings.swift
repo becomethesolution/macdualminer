@@ -81,6 +81,8 @@ struct MinerSettings: Codable, Equatable {
 
     // MARK: Switching
     var switchingMode: SwitchingMode = .auto
+    /// Auto mode: leave a device idle when every coin it could mine loses money after electricity.
+    var pauseUnprofitable = true
     var manualCPUOption = "xmrig:XMR"
     var manualGPUOption = "kawpow:RVN"
     var switchCheckMinutes = 15

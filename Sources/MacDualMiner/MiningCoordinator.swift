@@ -115,7 +115,10 @@ final class MiningCoordinator {
                                                estimates: estimates, installed: installed))
     }
 
-    var bestPlan: MiningPlan { ProfitPlanner.bestPlan(ranked, skipUnprofitable: false) }
+    var bestPlan: MiningPlan { ProfitPlanner.bestPlan(ranked, skipUnprofitable: settings.pauseUnprofitable) }
+
+    /// Devices left idle because every ready coin on them loses money after electricity.
+    private(set) var unprofitableDevices: Set<Device> = []
 
     /// Live reading > this Mac's benchmark > cryptominingonmacs.com reference for this chip.
     func estimate(for pair: EngineAlgo) -> HashrateEstimate {
@@ -222,16 +225,22 @@ final class MiningCoordinator {
         case .auto:
             guard !profit.markets.isEmpty, profit.btcUSD != nil else { return activePlan.options.isEmpty ? manualPlan() : activePlan }
             let rankedNow = ranked
-            let best = ProfitPlanner.bestPlan(rankedNow, skipUnprofitable: false)
+            let skipLosses = s.pauseUnprofitable
+            let best = ProfitPlanner.bestPlan(rankedNow, skipUnprofitable: skipLosses)
+            unprofitableDevices = skipLosses ? ProfitPlanner.losingDevices(rankedNow) : []
+            // A running coin that now loses money is dropped straight away – no margin or minimum run time.
             let currentEligible = !activePlan.options.isEmpty && activePlan.options.allSatisfy { o in
-                rankedNow.first { $0.option == o }?.isEligible == true
+                guard let row = rankedNow.first(where: { $0.option == o }), row.isEligible else { return false }
+                return !skipLosses || row.netUSDPerDay > 0
             }
             guard currentEligible else {
-                if !best.options.isEmpty, best.options != activePlan.options {
-                    log("Mining \(best.summary) – best ready option")
+                if best.options != activePlan.options {
+                    log(best.options.isEmpty ? "Paused – every ready coin loses money after electricity"
+                                             : "Mining \(best.summary) – best profitable option")
                 }
                 recommendedPlan = nil
-                return best.options.isEmpty ? manualPlan() : best
+                if best.options.isEmpty { return skipLosses ? .empty : manualPlan() }
+                return best
             }
             let currentNet = ProfitPlanner.value(of: activePlan.options, in: rankedNow)
             let better = ProfitPlanner.shouldSwitch(currentNet: currentNet, bestNet: best.netUSDPerDay, marginPercent: s.switchMarginPercent)
@@ -253,8 +262,8 @@ final class MiningCoordinator {
     private func betterPlan(than current: MiningPlan) -> MiningPlan? {
         guard !profit.markets.isEmpty else { return nil }
         let rankedNow = ranked
-        let best = ProfitPlanner.bestPlan(rankedNow, skipUnprofitable: false)
-        guard best.options != current.options else { return nil }
+        let best = ProfitPlanner.bestPlan(rankedNow, skipUnprofitable: settings.pauseUnprofitable)
+        guard !best.options.isEmpty, best.options != current.options else { return nil }
         let currentNet = ProfitPlanner.value(of: current.options, in: rankedNow)
         return ProfitPlanner.shouldSwitch(currentNet: currentNet, bestNet: best.netUSDPerDay,
                                           marginPercent: settings.switchMarginPercent) ? best : nil
@@ -285,7 +294,12 @@ final class MiningCoordinator {
                !FileManager.default.isExecutableFile(atPath: option.engine.executable.path) {
                 reasons[device] = "\(option.engine.displayName) isn't installed – rebuild with scripts/build-app.sh"; continue
             }
-            if activePlan.option(on: device) == nil { reasons[device] = "No coin ready for the \(device.label)"; continue }
+            if activePlan.option(on: device) == nil {
+                reasons[device] = unprofitableDevices.contains(device) && s.switchingMode == .auto
+                    ? "Paused – every coin loses money on the \(device.label) at \(Format.usd(s.electricityUSDPerKWh))/kWh"
+                    : "No coin ready for the \(device.label)"
+                continue
+            }
             guard wantsMining, benchmarkOption == nil else { continue }
             if s.pauseOnBattery && system.onBattery { reasons[device] = "Paused – running on battery" }
             else if s.pauseOnThermalPressure && (system.thermalState == .serious || system.thermalState == .critical) {

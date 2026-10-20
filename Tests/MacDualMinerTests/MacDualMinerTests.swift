@@ -313,3 +313,28 @@ final class HardwareTests: XCTestCase {
         XCTAssertEqual(ReferenceHashrates.lookup(chip: "Apple M2 Max", engine: .ethminer)?.hashrate, 19_870_000)
     }
 }
+
+final class LossRuleTests: XCTestCase {
+    private func row(_ id: String, net: Double, power: Double = 0.2) -> RankedOption {
+        let option = MiningOption(id: id)!
+        return RankedOption(option: option, coinName: option.coinTag, algorithm: option.engineAlgo.algorithm,
+                            estimate: HashrateEstimate(cpu: 1, gpu: 1, watts: 50, source: .live, note: nil),
+                            coinsPerDay: 1, priceUSD: 1, grossUSDPerDay: net + power, powerUSDPerDay: power,
+                            watts: 50, volumeBTC: 10, feePercent: 1, status: .ready, experimental: false)
+    }
+
+    func testLosingGPUIsLeftIdle() {
+        let ranked = [row("xmrig:XMR", net: 0.135), row("kawpow:RVN", net: -0.185), row("ethminer:ETHW", net: -0.2)]
+        let plan = ProfitPlanner.bestPlan(ranked, skipUnprofitable: true)
+        XCTAssertEqual(plan.options.map(\.id), ["xmrig:XMR"])
+        XCTAssertEqual(plan.netUSDPerDay, 0.135, accuracy: 1e-9)
+        XCTAssertEqual(ProfitPlanner.losingDevices(ranked), [.gpu])
+        // Old behaviour still available
+        XCTAssertEqual(ProfitPlanner.bestPlan(ranked, skipUnprofitable: false).options.count, 2)
+    }
+
+    func testEverythingLosingGivesEmptyPlan() {
+        let ranked = [row("xmrig:XMR", net: -0.01), row("kawpow:RVN", net: -0.1)]
+        XCTAssertTrue(ProfitPlanner.bestPlan(ranked, skipUnprofitable: true).options.isEmpty)
+    }
+}

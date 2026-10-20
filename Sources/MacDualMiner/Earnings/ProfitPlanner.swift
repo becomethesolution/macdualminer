@@ -202,6 +202,16 @@ enum ProfitPlanner {
         return MiningPlan(options: split.map(\.option), netUSDPerDay: splitNet)
     }
 
+    /// Devices whose ready coins all lose money (and that have at least one ready coin).
+    static func losingDevices(_ ranked: [RankedOption]) -> Set<Device> {
+        var result: Set<Device> = []
+        for device in Device.allCases {
+            let ready = ranked.filter { $0.isEligible && $0.devices.contains(device) }
+            if !ready.isEmpty && ready.allSatisfy({ $0.netUSDPerDay <= 0 }) { result.insert(device) }
+        }
+        return result
+    }
+
     /// Net USD/day of an arbitrary plan using the same ranking numbers.
     static func value(of options: [MiningOption], in ranked: [RankedOption]) -> Double {
         options.compactMap { o in ranked.first { $0.option == o }?.netUSDPerDay }.reduce(0, +)

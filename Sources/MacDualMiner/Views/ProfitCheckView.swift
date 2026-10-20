@@ -9,7 +9,7 @@ struct ProfitCheckView: View {
     var body: some View {
         let ranked = coordinator.ranked
         let rows = uiState.showIneligibleCoins ? ranked : ranked.filter(\.isEligible)
-        let best = ProfitPlanner.bestPlan(ranked, skipUnprofitable: false)
+        let best = ProfitPlanner.bestPlan(ranked, skipUnprofitable: coordinator.settings.pauseUnprofitable)
         // A plain ScrollView of rows rather than SwiftUI's Table: Table's selection binding fed back into
         // shared state on every update and blanked the whole window in 0.3.0.
         ScrollView {
