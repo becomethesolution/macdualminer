@@ -71,7 +71,9 @@ final class UpdateService {
     func installUpdate(beforeRelaunch: @escaping @MainActor () -> Void) async {
         guard let info = available, let zipURL = info.zipURL else { openReleasePage(); return }
         let fm = FileManager.default
-        let current = Bundle.main.bundleURL
+        // A downloaded app that still carries the quarantine flag is run by macOS from a read-only
+        // "App Translocation" copy; update the real app where the user put it instead.
+        let current = Translocation.originalURL(for: Bundle.main.bundleURL)
         guard fm.isWritableFile(atPath: current.deletingLastPathComponent().path) else {
             state = .failed("Can't replace the app in \(current.deletingLastPathComponent().path) – opening the release page instead")
             openReleasePage()
@@ -95,6 +97,8 @@ final class UpdateService {
                       (bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) == info.version
                 else { throw InstallError("the download isn't MacDualMiner \(info.version)") }
                 try Self.run("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path])
+                // Verified above, so drop any quarantine flag: otherwise macOS translocates it again.
+                try? Self.run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", app.path])
                 return app
             }.value
 
@@ -123,5 +127,27 @@ final class UpdateService {
         guard p.terminationStatus == 0 else {
             throw InstallError("\(URL(fileURLWithPath: tool).lastPathComponent) failed (\(p.terminationStatus))")
         }
+    }
+}
+
+/// Finds where a translocated app really lives, using Security.framework's SecTranslocate calls
+/// (looked up at run time; they're public C functions without a Swift header).
+enum Translocation {
+    private typealias IsTranslocated = @convention(c) (CFURL, UnsafeMutablePointer<Bool>, UnsafeMutableRawPointer?) -> Bool
+    private typealias OriginalPath = @convention(c) (CFURL, UnsafeMutableRawPointer?) -> Unmanaged<CFURL>?
+
+    static func isTranslocated(_ url: URL) -> Bool { url.path.contains("/AppTranslocation/") }
+
+    static func originalURL(for url: URL) -> URL {
+        guard isTranslocated(url),
+              let handle = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_LAZY) else { return url }
+        defer { dlclose(handle) }
+        guard let isSym = dlsym(handle, "SecTranslocateIsTranslocatedURL"),
+              let origSym = dlsym(handle, "SecTranslocateCreateOriginalPathForURL") else { return url }
+        var translocated = false
+        guard unsafeBitCast(isSym, to: IsTranslocated.self)(url as CFURL, &translocated, nil), translocated,
+              let original = unsafeBitCast(origSym, to: OriginalPath.self)(url as CFURL, nil)?.takeRetainedValue()
+        else { return url }
+        return original as URL
     }
 }
