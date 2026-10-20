@@ -37,6 +37,7 @@ struct MenuBarContent: View {
             Divider()
             HStack {
                 StartStopButton()
+                    .fixedSize()   // keep "Start Mining" from truncating
                 Spacer()
                 Button("Dashboard") {
                     openWindow(id: "dashboard")
@@ -48,6 +49,7 @@ struct MenuBarContent: View {
             }
         }
         .padding(14)
-        .frame(width: 320)
+        .frame(width: 340)
+        .preferredColorScheme(coordinator.settings.darkInterface ? .dark : nil)
     }
 }
