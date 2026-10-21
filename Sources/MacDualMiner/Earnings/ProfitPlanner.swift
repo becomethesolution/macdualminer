@@ -76,6 +76,21 @@ final class BenchmarkStore {
         save()
     }
 
+    /// Measured power from live mining. Unlike live hashrates it is always taken in, even over a fresh
+    /// benchmark: benchmarks often have no power figure (the idle baseline wasn't known yet), and the
+    /// profit check must charge the same watts as the live pause rule or auto mode keeps restarting a coin.
+    func recordMeasuredWatts(_ watts: Double, live: BenchmarkResult, for engine: EngineAlgo) {
+        if var existing = results[engine] {
+            existing.watts = existing.watts.map { $0 * 0.5 + watts * 0.5 } ?? watts
+            results[engine] = existing
+        } else {
+            var result = live
+            result.watts = watts
+            results[engine] = result
+        }
+        save()
+    }
+
     func clear() { results.removeAll(); save() }
 
     private func save() {

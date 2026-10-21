@@ -375,3 +375,22 @@ final class AppearanceSettingTests: XCTestCase {
         XCTAssertEqual(MinerSettings().appearance, .dark)
     }
 }
+
+@MainActor
+final class MeasuredPowerTests: XCTestCase {
+    func testMeasuredWattsReachAFreshBenchmark() {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("bench-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = BenchmarkStore(url: url)
+        let pair = EngineAlgo(.xmrig, .randomX)
+        store.record(BenchmarkResult(cpuHashrate: 7_630, gpuHashrate: 0, watts: nil, date: Date(), coinTag: "XMR",
+                                     fromLiveMining: false), for: pair)
+        let live = BenchmarkResult(cpuHashrate: 7_700, gpuHashrate: 0, watts: 91, date: Date(), coinTag: "XMR", fromLiveMining: true)
+        store.recordMeasuredWatts(91, live: live, for: pair)
+        XCTAssertEqual(store.results[pair]?.watts, 91)
+        XCTAssertEqual(store.results[pair]?.cpuHashrate, 7_630)       // the benchmark's hashrate is kept
+        store.recordMeasuredWatts(81, live: live, for: pair)
+        XCTAssertEqual(store.results[pair]?.watts, 86)                // later readings blend in
+        XCTAssertEqual(BenchmarkStore(url: url).results[pair]?.watts, 86) // and are saved
+    }
+}

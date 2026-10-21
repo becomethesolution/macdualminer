@@ -36,6 +36,7 @@ final class MiningCoordinator {
     @ObservationIgnored private var benchmarkOption: MiningOption?
     @ObservationIgnored private var sleepActivity: NSObjectProtocol?
     @ObservationIgnored private var lastLiveRecord: [EngineAlgo: Date] = [:]
+    @ObservationIgnored private var lastPowerRecord: [EngineAlgo: Date] = [:]
 
     var settings: MinerSettings { store.settings }
     var engines: [any MiningEngine] { [xmrig, kawpow, ethminer, useleth] }
@@ -158,6 +159,7 @@ final class MiningCoordinator {
     private func evaluate() {
         let s = settings
         updateBlockReasons()
+        learnLivePower()
         let desired = desiredPlan()
         if desired.options != activePlan.options { setActive(desired, reason: nil) }
 
@@ -319,6 +321,30 @@ final class MiningCoordinator {
         } else if !active, let activity = sleepActivity {
             ProcessInfo.processInfo.endActivity(activity)
             sleepActivity = nil
+        }
+    }
+
+    /// As soon as an engine mining alone has a measured power figure (90 s in, the same point the live
+    /// estimate switches to measured watts), remember it. Otherwise a coin judged with the watts estimate
+    /// looks profitable while stopped and loses money once running, and auto mode keeps restarting it.
+    private func learnLivePower() {
+        guard benchmarkOption == nil, settings.powerSource != .manual, system.idleBaselineWatts != nil,
+              engines.filter(\.isMining).count == 1 else { return }
+        let watts = allocatedWatts
+        let cpuF = settings.cpuPowerFactor, gpuF = settings.gpuPowerFactor
+        for e in engines {
+            guard e.isMining, e.totalHashrate > 0, let job = e.job, let started = e.process.startedAt,
+                  Date().timeIntervalSince(started) > 90, let w = watts[e.kind], w > 0 else { continue }
+            let pair = job.option.engineAlgo
+            if let last = lastPowerRecord[pair], Date().timeIntervalSince(last) < 60 { continue }
+            lastPowerRecord[pair] = Date()
+            let fullPower = w / max(0.1, scaledWatts(1, kind: e.kind, cpu: cpuF, gpu: gpuF))
+            benchmarks.recordMeasuredWatts(fullPower,
+                                           live: BenchmarkResult(cpuHashrate: e.hashrate(for: .cpu) / cpuF,
+                                                                 gpuHashrate: e.hashrate(for: .gpu) / gpuF,
+                                                                 watts: fullPower, date: Date(),
+                                                                 coinTag: job.option.coinTag, fromLiveMining: true),
+                                           for: pair)
         }
     }
 
