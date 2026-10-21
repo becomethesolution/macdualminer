@@ -2,6 +2,8 @@
 
 A lightweight native macOS app that mines on **both halves of an Apple Silicon chip at once**, with a **NiceHash-like style and interface**: one big Start button, live profitability, per-device controls and automatic switching to the most profitable coin. It runs on any M1–M5 Mac with macOS 15 or later and is tuned for the **M5 Max**. It runs four engines and **automatically picks the most profitable coin for each part of the chip**.
 
+**Full guide with screenshots, setup and real M5 Max results:** [MacDualMiner on cryptominingonmacs.com](https://cryptominingonmacs.com/viewtopic.php?t=170)
+
 | Engine | Part of the chip | Algorithm | Coins in the profit check | How it ships |
 |---|---|---|---|---|
 | [XMRig](https://github.com/xmrig/xmrig) | CPU | RandomX, GhostRider | Monero, Zephyr, QRL, Epic Cash, Etica, Raptoreum | Bundled (official release, SHA-256 verified) |

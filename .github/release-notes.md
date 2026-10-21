@@ -24,3 +24,5 @@ Bundled engines:
 - UselethMiner is optional: download it in-app from Settings › Engines.
 
 Prefer to build it yourself? Clone the repo and run `INSTALL=1 scripts/build-app.sh`.
+
+Full guide with screenshots and configuration: [MacDualMiner on cryptominingonmacs.com](https://cryptominingonmacs.com/viewtopic.php?t=170)
