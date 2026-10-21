@@ -27,6 +27,9 @@ enum CommunityLinks {
 
 /// Help menu items and an About panel with a credit line.
 struct CommunityCommands: Commands {
+    let updates: UpdateService
+    let coordinator: MiningCoordinator
+
     var body: some Commands {
         CommandGroup(replacing: .appInfo) {
             Button("About MacDualMiner") { AboutPanel.show() }
@@ -35,7 +38,50 @@ struct CommunityCommands: Commands {
             Button("MacDualMiner Guide") { CommunityLinks.open(CommunityLinks.guide) }
             Button("\(CommunityLinks.siteName) Community") { CommunityLinks.open(CommunityLinks.community) }
             Divider()
+            Button("Check for Updates…") {
+                Task { await UpdateCheckAlert.run(updates: updates, coordinator: coordinator) }
+            }
             Button("Report an Issue on GitHub") { CommunityLinks.open(CommunityLinks.issues) }
+        }
+    }
+}
+
+/// "Check for Updates…" from the Help menu: checks GitHub now and reports the result in an alert.
+@MainActor
+enum UpdateCheckAlert {
+    static func run(updates: UpdateService, coordinator: MiningCoordinator) async {
+        if case .downloading = updates.state { return }
+        await updates.check()
+        let alert = NSAlert()
+        switch updates.state {
+        case .upToDate:
+            alert.messageText = "You're up to date"
+            alert.informativeText = "MacDualMiner \(updates.currentVersion) is the newest version."
+            alert.addButton(withTitle: "OK")
+        case .available(let info):
+            alert.messageText = "MacDualMiner \(info.version) is available"
+            alert.informativeText = "You have \(updates.currentVersion). Install & Restart downloads the update from GitHub, checks it, swaps it in and reopens the app. Mining stops briefly while it restarts."
+            alert.addButton(withTitle: "Install & Restart")
+            alert.addButton(withTitle: "Release Notes")
+            alert.addButton(withTitle: "Later")
+        case .failed(let why):
+            alert.alertStyle = .warning
+            alert.messageText = "Couldn't check for updates"
+            alert.informativeText = why + ". Check your internet connection and try again."
+            alert.addButton(withTitle: "OK")
+        default:
+            return
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        let response = alert.runModal()
+        guard case .available = updates.state else { return }
+        switch response {
+        case .alertFirstButtonReturn:
+            await updates.installUpdate { coordinator.shutdown() }
+        case .alertSecondButtonReturn:
+            updates.openReleasePage()
+        default:
+            break
         }
     }
 }

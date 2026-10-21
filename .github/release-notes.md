@@ -1,6 +1,10 @@
 MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Macs (M1–M5). It mines on the CPU and GPU, ranks coins by profit after electricity and switches automatically. [Full guide with screenshots](https://cryptominingonmacs.com/viewtopic.php?t=170).
 
-## What's new in 0.4.2
+## What's new in 0.4.3
+
+- **Help › Check for Updates…** checks GitHub right away and tells you the result: up to date, or a new version with *Install & Restart* and *Release Notes* buttons.
+
+## Also in 0.4.2
 
 - **Help and community links.** The Help menu now has the MacDualMiner guide, the [CryptoMiningOnMacs.com](https://cryptominingonmacs.com/) community and a link to report issues. The same links are in Settings › General › Help & community, and in a small "Community" link at the bottom of the sidebar.
 - **Clickable reference hashrates.** In Profit Check, hashrates marked *cryptominingonmacs.com* now open the test results they come from.
