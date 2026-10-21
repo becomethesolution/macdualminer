@@ -214,7 +214,7 @@ Yes. Apple Silicon Macs can mine CPU coins like Monero (RandomX) with XMRig, and
 It depends on the coin and your electricity price. XMRig is the fastest CPU miner on Apple Silicon, and kawpow-metal is the fastest KawPow miner (about 42–46 MH/s on an M5 Max, roughly three times MacMiner). MacDualMiner bundles both and benchmarks them on your own Mac. Hashrates for every M-series chip are on [cryptominingonmacs.com](https://cryptominingonmacs.com).
 
 ### Is crypto mining on a Mac profitable?
-Usually only just, or not at all, at typical US electricity prices. On an M5 Max at $0.17/kWh, Monero on the CPU nets about +$0.08/day, while Ravencoin on the GPU loses money. That's why MacDualMiner shows earnings after electricity and pauses whichever part of the chip would lose money. With cheap or solar power the numbers look better.
+Usually not at typical US electricity prices. On an M5 Max at $0.17/kWh, with the Mac's measured power, Monero on the CPU comes out at roughly break-even to −$0.07/day and Ravencoin on the GPU at about −$0.23/day. Quai on the GPU was about +$0.12/day, but it needs a Quai wallet or Kryptex account. That's why MacDualMiner shows earnings after electricity and pauses whichever part of the chip would lose money. With cheap or solar power the numbers look better.
 
 ### Is there a NiceHash for Mac?
 NiceHash's own mining software is made for Windows and its Linux-based NiceHash OS, not macOS. MacDualMiner gives a similar experience on a Mac (one Start button, profitability ranking, automatic switching), but you mine directly to your own wallets on regular pools. It isn't affiliated with NiceHash.
