@@ -47,8 +47,13 @@ if [[ "$PUBLISH" == "1" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-say "Running tests"
-swift test
+# The unit tests need XCTest, which ships with Xcode but not with the Command Line Tools alone.
+if [[ "$(xcode-select -p 2>/dev/null)" == *".app/"* ]]; then
+  say "Running tests"
+  swift test
+else
+  say "Skipping tests (they need Xcode; the Command Line Tools can still build the app)"
+fi
 
 say "Building MacDualMiner $VERSION"
 INSTALL="${INSTALL:-0}" scripts/build-app.sh
