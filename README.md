@@ -17,25 +17,33 @@ Engine choices and reference hashrates come from the Mac tests on [cryptominingo
 
 ## Screenshots
 
-Real numbers from a 2026 MacBook Pro 16" with an M5 Max (18-core CPU, 40-core GPU, 128 GB), mining Monero on the CPU and Ravencoin on the GPU at $0.17/kWh electricity.
+Real numbers from a 2026 MacBook Pro 16" with an M5 Max (18-core CPU, 40-core GPU, 128 GB) at $0.17/kWh electricity. More guides and hashrate tests: [cryptominingonmacs.com](https://cryptominingonmacs.com).
 
-**Dashboard while mining.** This view shows the live profitability after electricity, both parts of the chip with their coin, engine, hashrate, watts and shares, and the power vs earnings chart. kawpow-metal reached about 31–33 MH/s on the M5 Max GPU.
+**Dashboard.** Live profitability after electricity, both parts of the chip with their coin, engine, hashrate, watts and shares, and the power vs earnings chart. Here auto mode mines Monero on the CPU and has paused the GPU, because every coin it could mine there would lose money.
 
-![MacDualMiner dashboard on an M5 Max mining Monero on the CPU and Ravencoin on the GPU](docs/screenshots/macdualminer-dashboard-m5-max-cpu-gpu-mining.webp)
+![MacDualMiner dashboard on an M5 Max mining Monero on the CPU with the GPU paused as unprofitable](docs/screenshots/macdualminer-dashboard-m5-max-mining-monero-cpu-gpu-paused.webp)
 
-**Profit Check.** Every coin the bundled engines can mine is ranked by net USD per day. Each row shows the coin's algorithm, engine and part of the chip, your hashrate (live, benchmarked or the cryptominingonmacs.com reference), coins mined per day, 24h trading volume and whether it's ready to mine.
+**Profit Check.** Every coin the bundled engines can mine, ranked by net USD per day, with its algorithm, engine, your hashrate (live, benchmarked on this Mac, or the cryptominingonmacs.com reference), coins mined per day, 24h trading volume and whether it's ready to mine.
 
-![MacDualMiner profit check ranking coins by algorithm, engine and net USD per day on an M5 Max](docs/screenshots/macdualminer-profit-check-coins-algorithms-m5-max.webp)
+![MacDualMiner profit check ranking coins by algorithm, engine and net USD per day on an M5 Max](docs/screenshots/macdualminer-profit-check-coins-algorithms-net-usd-per-day-m5-max.webp)
 
-The XMRig hashrate in the Profit Check (2.7 kH/s) was measured while the GPU was also mining, which roughly halves CPU speed on the M5 Max. On its own, XMRig does about 8.9 kH/s. Since 0.3.4 the Profit Check only learns from an engine mining on its own, so it keeps the solo figure.
+| | |
+|---|---|
+| ![MacDualMiner earnings projection in USD per hour, day, week, month and year](docs/screenshots/macdualminer-earnings-usd-per-hour-day-week-month-year.webp)<br>**Earnings.** Gross, electricity and net per hour, day, week, month and year, and how it's calculated. | ![MacDualMiner XMRig log with accepted shares and hashrate](docs/screenshots/macdualminer-logs-xmrig-randomx-accepted-shares.webp)<br>**Logs.** Each engine's own output: accepted shares and the hashrate the miner reports. |
+
+![MacDualMiner menu bar menu with mining status and net earnings](docs/screenshots/macdualminer-menu-bar-status-earnings.webp)
+
+**Menu bar.** Start or stop mining and watch earnings without opening the window.
 
 ### Settings
 
 | | |
 |---|---|
-| ![MacDualMiner General settings with the GitHub update check showing a new version available](docs/screenshots/macdualminer-settings-general-update-check.webp)<br>**General.** Dark NiceHash-like look, and an update check that installs new GitHub releases after verifying the app's signature. | ![MacDualMiner Switching settings: auto-switch to the most profitable coin, switch margin, minimum run time and liquidity filter](docs/screenshots/macdualminer-settings-switching-auto-profit-switch-rules.webp)<br>**Switching.** Auto-switch, recommend-only or manual, with a switch margin, minimum run time and a trading-volume filter. |
-| ![MacDualMiner Engines settings: XMRig, kawpow-metal, ethminer-m1 and UselethMiner with separate 1–10 CPU and GPU power ratings](docs/screenshots/macdualminer-settings-engines-xmrig-kawpow-ethminer-power-rating.webp)<br>**Engines.** Turn the CPU, GPU and each engine on or off, and set separate 1–10 power ratings. | ![MacDualMiner Earnings settings: electricity price per kWh and measured power over idle](docs/screenshots/macdualminer-settings-earnings-electricity-price-power.webp)<br>**Earnings.** Your electricity price and how power is measured (the Mac's own sensor, above idle). |
-| ![MacDualMiner Rules settings: pause on battery, pause under thermal pressure, mine only while away, keep awake](docs/screenshots/macdualminer-settings-rules-battery-thermal-idle.webp)<br>**Rules.** Pause on battery or under thermal pressure, mine only while you're away, start at login. | The **Coins & Wallets** tab, where you paste a wallet per coin or a Kryptex username, isn't shown because it holds real addresses. |
+| ![MacDualMiner Coins & Wallets settings with a wallet per coin, pool choice and Kryptex account](docs/screenshots/macdualminer-settings-coins-wallets-pools-kryptex.webp)<br>**Coins & Wallets.** A wallet and pool per coin, or a Kryptex username. | ![MacDualMiner Switching settings: auto-switch, switch margin, minimum run time, liquidity filter and pausing unprofitable devices](docs/screenshots/macdualminer-settings-switching-auto-profit-switch-pause-unprofitable.webp)<br>**Switching.** Auto, recommend-only or manual, with a switch margin, minimum run time, trading-volume filter and pausing devices that would lose money. |
+| ![MacDualMiner Engines settings: XMRig, kawpow-metal, ethminer-m1 and UselethMiner with separate 1–10 CPU and GPU power ratings](docs/screenshots/macdualminer-settings-engines-xmrig-kawpow-ethminer-cpu-gpu-power-rating.webp)<br>**Engines.** Turn the CPU, GPU and each engine on or off, and set separate 1–10 power ratings. | ![MacDualMiner Earnings settings: electricity price per kWh and measured power over idle](docs/screenshots/macdualminer-settings-earnings-electricity-price-power-measurement.webp)<br>**Earnings.** Your electricity price and how power is measured. |
+| ![MacDualMiner Rules settings: pause on battery or thermal pressure, mine only while away, start at login](docs/screenshots/macdualminer-settings-rules-battery-thermal-idle-startup.webp)<br>**Rules.** Pause on battery or under thermal pressure, mine only while you're away, start at login. | ![MacDualMiner General settings: dark NiceHash-like look and GitHub update check](docs/screenshots/macdualminer-settings-general-github-update-check.webp)<br>**General.** The dark NiceHash-like look and the update check, which installs new GitHub releases after verifying them. |
+
+Measured on the M5 Max: XMRig does about 7.6–7.9 kH/s with the CPU alone and 3–4 kH/s while the GPU also mines; kawpow-metal does about 42–46 MH/s with the GPU alone and 31–33 MH/s while the CPU also mines. Personal details (wallet address, Mac name, user folder) are blurred.
 
 ## Features
 
