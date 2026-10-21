@@ -14,6 +14,7 @@ struct MacDualMinerApp: App {
                 .frame(minWidth: 1040, minHeight: 680)
         }
         .defaultSize(width: 1180, height: 860)
+        .commands { CommunityCommands() }
 
         MenuBarExtra {
             MenuBarContent()

@@ -72,6 +72,7 @@ private struct Sidebar: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                 }
+                CommunityFooterLink()
                 HStack {
                     SettingsLink { Label("Settings", systemImage: "gearshape") }
                         .buttonStyle(.borderless)

@@ -141,7 +141,8 @@ final class MiningCoordinator {
             let cpu = kind.devices.contains(.cpu) ? r.hashrate : 0
             let gpu = kind == .useleth ? (r.gpuHashrate ?? 0) : (kind.devices.contains(.gpu) ? r.hashrate : 0)
             return HashrateEstimate(cpu: cpu * cpuF, gpu: gpu * gpuF, watts: nil, source: .reference,
-                                    note: r.note + " (full power, scaled to your power level)")
+                                    note: r.note + " (full power, scaled to your power level)",
+                                    sourceURL: CommunityLinks.tagged(r.source, content: "hashrate-reference"))
         }
         return HashrateEstimate(cpu: 0, gpu: 0, watts: nil, source: .none, note: nil)
     }

@@ -79,7 +79,7 @@ struct ProfitCheckView: View {
             if let problem = coordinator.profit.problem { Text(problem).foregroundStyle(.orange) }
             Text(verbatim: "Not mineable with the bundled engines: " + CoinCatalog.unsupported.map { "\($0.tag) (\($0.algorithmName)) – \($0.reason)" }.joined(separator: "; "))
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Hashrates marked cryptominingonmacs.com are reference results for your chip until this Mac is benchmarked or has mined for 5 minutes.")
+            Text("Hashrates marked cryptominingonmacs.com are reference results for your chip until this Mac is benchmarked or has mined for 5 minutes. Click one to see the test it comes from.")
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -149,8 +149,14 @@ private struct ProfitRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(Format.hashrate(r.estimate.total)).monospacedDigit()
-                Text(r.estimate.source.label).font(.caption).lineLimit(1)
-                    .foregroundStyle(r.estimate.source == .reference ? Theme.accent : Color.secondary)
+                if r.estimate.source == .reference, let url = r.estimate.sourceURL {
+                    Link(r.estimate.source.label, destination: url)
+                        .font(.caption).lineLimit(1)
+                        .tint(Theme.accent)
+                } else {
+                    Text(r.estimate.source.label).font(.caption).lineLimit(1)
+                        .foregroundStyle(r.estimate.source == .reference ? Theme.accent : Color.secondary)
+                }
             }
             .frame(width: ProfitColumns.hashrate, alignment: .leading)
             .help(r.estimate.note ?? "")

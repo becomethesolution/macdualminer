@@ -58,6 +58,19 @@ private struct GeneralSettings: View {
                 Text("Updates are downloaded from this app's GitHub releases, checked for the right app, version and code signature, then swapped in and the app restarts.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section("Help & community") {
+                LabeledContent("Setup guide") {
+                    Link("MacDualMiner guide", destination: CommunityLinks.guide)
+                }
+                LabeledContent("Community") {
+                    Link(CommunityLinks.siteName, destination: CommunityLinks.tagged("https://cryptominingonmacs.com/", content: "settings"))
+                }
+                LabeledContent("Bugs and ideas") {
+                    Link("GitHub Issues", destination: CommunityLinks.issues)
+                }
+                Text("\(CommunityLinks.siteName) is \(CommunityLinks.tagline): guides for each miner, hashrate tables for every M-series chip, and a forum for questions.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
     }

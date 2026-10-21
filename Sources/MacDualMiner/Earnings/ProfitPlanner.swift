@@ -110,6 +110,8 @@ struct HashrateEstimate: Equatable {
     var watts: Double?
     var source: HashrateSource
     var note: String?
+    /// For reference hashrates: the cryptominingonmacs.com post the number comes from.
+    var sourceURL: URL? = nil
     var total: Double { cpu + gpu }
 }
 
