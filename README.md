@@ -134,6 +134,18 @@ Override the pinned versions with environment variables, e.g. `XMRIG_VERSION=6.2
 
 Run the unit tests (earnings maths, parsers, config generation) with `swift test`.
 
+### Publishing a release
+
+Releases are built on a Mac, not on GitHub Actions. From a clean, up-to-date checkout of `main`, bump `VERSION`, commit and push, then run:
+
+```bash
+scripts/release.sh               # tests, builds, saves to ~/Desktop/MacDualMiner Builds/<version>/, publishes v<version>
+INSTALL=1 scripts/release.sh     # same, and installs the new build to /Applications
+DRY_RUN=1 scripts/release.sh     # build and save only, publish nothing
+```
+
+Publishing uses the GitHub CLI (`brew install gh && gh auth login`, once). The in-app updater picks up the new release automatically.
+
 ## First run
 
 1. Open **MacDualMiner** and go to **Settings (⌘,) › Coins & Wallets**.
@@ -184,7 +196,7 @@ Sources/MacDualMiner/
   Views/                     Dashboard, Profit Check, Earnings, Logs, Settings, menu bar
 scripts/build-app.sh         Fetch + verify + build engines, assemble .app
 scripts/patch_kawpow.py      Makes kawpow-metal bundle-friendly
-.github/workflows/build.yml  CI: tests + app build on macOS; releases on v* tags
+scripts/release.sh           build on this Mac, save to ~/Desktop/MacDualMiner Builds, publish the GitHub release
 ```
 
 ## More guides
