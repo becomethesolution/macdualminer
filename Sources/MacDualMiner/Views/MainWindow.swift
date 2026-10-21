@@ -21,13 +21,14 @@ struct MainWindow: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.canvas)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) { StartStopButton() }
             }
         }
         .tint(Theme.accent)
-        .preferredColorScheme(coordinator.settings.darkInterface ? .dark : nil)
-        .onChange(of: coordinator.settings.darkInterface) { _, dark in AppAppearance.apply(dark: dark) }
+        .preferredColorScheme(coordinator.settings.appearance.colorScheme)
+        .onChange(of: coordinator.settings.appearance) { _, mode in AppAppearance.apply(mode) }
     }
 }
 

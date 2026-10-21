@@ -23,7 +23,10 @@ private struct GeneralSettings: View {
         @Bindable var store = coordinator.store
         Form {
             Section("Appearance") {
-                Toggle("Dark mining-dashboard look (off = follow macOS)", isOn: $store.settings.darkInterface)
+                Picker("Appearance", selection: $store.settings.appearance) {
+                    ForEach(AppearanceMode.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
             }
             Section("Updates") {
                 Toggle("Check GitHub for new versions automatically", isOn: $store.settings.checkForUpdates)

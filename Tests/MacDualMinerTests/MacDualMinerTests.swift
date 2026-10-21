@@ -366,3 +366,12 @@ final class KawpowParsingTests: XCTestCase {
         XCTAssertTrue(KawpowController.isSettledSample("  42.24 MH/s"))
     }
 }
+
+final class AppearanceSettingTests: XCTestCase {
+    func testOldFollowMacOSSettingBecomesSystem() {
+        XCTAssertEqual(MinerSettings.load(from: Data(#"{"darkInterface":false}"#.utf8)).appearance, .system)
+        XCTAssertEqual(MinerSettings.load(from: Data(#"{"darkInterface":true}"#.utf8)).appearance, .dark)
+        XCTAssertEqual(MinerSettings.load(from: Data(#"{"darkInterface":false,"appearance":"light"}"#.utf8)).appearance, .light)
+        XCTAssertEqual(MinerSettings().appearance, .dark)
+    }
+}

@@ -31,7 +31,7 @@ struct MacDualMinerApp: App {
                 .environment(appDelegate.ui)
                 .environment(appDelegate.updates)
                 .frame(width: 680, height: 620)
-                .preferredColorScheme(appDelegate.coordinator.settings.darkInterface ? .dark : nil)
+                .preferredColorScheme(appDelegate.coordinator.settings.appearance.colorScheme)
         }
     }
 }
@@ -48,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let coordinator = self.coordinator
         updates.start { coordinator.settings.checkForUpdates }
-        AppAppearance.apply(dark: coordinator.settings.darkInterface)
+        AppAppearance.apply(coordinator.settings.appearance)
     }
 
     /// Keep mining from the menu bar when the window is closed.
@@ -119,7 +119,21 @@ enum EngineReaper {
 /// SwiftUI's preferredColorScheme doesn't reach the menu bar window, so the dark look is also set app-wide.
 @MainActor
 enum AppAppearance {
-    static func apply(dark: Bool) {
-        NSApp.appearance = dark ? NSAppearance(named: .darkAqua) : nil
+    static func apply(_ mode: AppearanceMode) {
+        switch mode {
+        case .dark: NSApp.appearance = NSAppearance(named: .darkAqua)
+        case .light: NSApp.appearance = NSAppearance(named: .aqua)
+        case .system: NSApp.appearance = nil
+        }
+    }
+}
+
+extension AppearanceMode {
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .dark: return .dark
+        case .light: return .light
+        case .system: return nil
+        }
     }
 }

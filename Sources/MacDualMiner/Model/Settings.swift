@@ -56,6 +56,20 @@ enum SwitchingMode: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// Dark (NiceHash-style charcoal), light, or whatever macOS is set to.
+enum AppearanceMode: String, Codable, CaseIterable, Identifiable {
+    case dark, light, system
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .dark: return "Dark"
+        case .light: return "Light"
+        case .system: return "Match macOS"
+        }
+    }
+}
+
 /// A pool the user typed in for a coin.
 struct CustomPool: Codable, Equatable {
     var address = ""
@@ -76,7 +90,8 @@ struct MinerSettings: Codable, Equatable {
 
     // MARK: App
     var checkForUpdates = true
-    /// NiceHash-style dark interface; off = follow the system appearance.
+    var appearance: AppearanceMode = .dark
+    /// 0.3.x setting, read once to choose `appearance` for existing users (false meant "follow macOS").
     var darkInterface = true
 
     // MARK: Switching
@@ -159,6 +174,9 @@ struct MinerSettings: Codable, Equatable {
             var merged = try? JSONSerialization.jsonObject(with: defaultsData) as? [String: Any]
         else { return MinerSettings() }
         for (key, value) in stored { merged[key] = value }
+        if stored["appearance"] == nil, let dark = stored["darkInterface"] as? Bool, !dark {
+            merged["appearance"] = AppearanceMode.system.rawValue
+        }
         guard
             let mergedData = try? JSONSerialization.data(withJSONObject: merged),
             let settings = try? JSONDecoder().decode(MinerSettings.self, from: mergedData)
