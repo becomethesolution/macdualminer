@@ -23,7 +23,7 @@ Real numbers from a 2026 MacBook Pro 16" with an M5 Max (18-core CPU, 40-core GP
 
 **Dashboard.** Live profitability after electricity, both parts of the chip with their coin, engine, hashrate, watts and shares, and the power vs earnings chart. Here auto mode mines Monero on the CPU and has paused the GPU, because every coin it could mine there would lose money.
 
-![MacDualMiner dashboard on an M5 Max mining Monero on the CPU with the GPU paused as unprofitable](docs/screenshots/macdualminer-dashboard-m5-max-mining-monero-cpu-gpu-paused.webp)
+![MacDualMiner dashboard on an M5 Max mining Monero on the CPU with measured power and net profit after electricity](docs/screenshots/macdualminer-dashboard-m5-max-mining-monero-cpu-gpu-paused.webp)
 
 **Profit Check.** Every coin the bundled engines can mine, ranked by net USD per day, with its algorithm, engine, your hashrate (live, benchmarked on this Mac, or the cryptominingonmacs.com reference), coins mined per day, 24h trading volume and whether it's ready to mine.
 
