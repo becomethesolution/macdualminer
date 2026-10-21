@@ -1,3 +1,5 @@
+MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Macs (M1–M5). It mines on the CPU and GPU, ranks coins by profit after electricity and switches automatically. [Full guide with screenshots](https://cryptominingonmacs.com/viewtopic.php?t=170).
+
 ## Install
 
 1. Download **MacDualMiner-x.y.z.zip** below and unzip it.

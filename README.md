@@ -1,6 +1,6 @@
-# MacDualMiner
+# MacDualMiner – macOS Crypto Miner for Apple Silicon
 
-A lightweight native macOS app that mines on **both halves of an Apple Silicon chip at once**, with a **NiceHash-like style and interface**: one big Start button, live profitability, per-device controls and automatic switching to the most profitable coin. It runs on any M1–M5 Mac with macOS 15 or later and is tuned for the **M5 Max**. It runs four engines and **automatically picks the most profitable coin for each part of the chip**.
+MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Macs (M1, M2, M3, M4 and M5). It's a lightweight native app that mines on **both halves of an Apple Silicon chip at once**, with a **NiceHash-like style and interface**: one big Start button, live profitability, per-device controls and automatic switching to the most profitable coin. It runs on any M1–M5 Mac with macOS 15 or later and is tuned for the **M5 Max**. It runs four engines and **automatically picks the most profitable coin for each part of the chip**.
 
 **Full guide with screenshots, setup and real M5 Max results:** [MacDualMiner on cryptominingonmacs.com](https://cryptominingonmacs.com/viewtopic.php?t=170)
 
@@ -192,6 +192,25 @@ scripts/patch_kawpow.py      Makes kawpow-metal bundle-friendly
 Mac mining results, engine tests and guides: **[cryptominingonmacs.com](https://cryptominingonmacs.com)**.
 
 MacDualMiner is an independent project. It is not affiliated with or endorsed by NiceHash; the name is used only to describe the style of the interface.
+
+## FAQ
+
+### Can you mine crypto on a Mac?
+Yes. Apple Silicon Macs can mine CPU coins like Monero (RandomX) with XMRig, and GPU coins like Ravencoin and Quai (KawPow) with kawpow-metal, which runs on the GPU through Metal. MacDualMiner runs both, and picks which coin each part of the chip should mine.
+
+### What's the best crypto miner for M1, M2, M3, M4 or M5 Macs?
+It depends on the coin and your electricity price. XMRig is the fastest CPU miner on Apple Silicon, and kawpow-metal is the fastest KawPow miner (about 42–46 MH/s on an M5 Max, roughly three times MacMiner). MacDualMiner bundles both and benchmarks them on your own Mac. Hashrates for every M-series chip are on [cryptominingonmacs.com](https://cryptominingonmacs.com).
+
+### Is crypto mining on a Mac profitable?
+Usually only just, or not at all, at typical US electricity prices. On an M5 Max at $0.17/kWh, Monero on the CPU nets about +$0.08/day, while Ravencoin on the GPU loses money. That's why MacDualMiner shows earnings after electricity and pauses whichever part of the chip would lose money. With cheap or solar power the numbers look better.
+
+### Is there a NiceHash for Mac?
+NiceHash's own mining software is made for Windows and its Linux-based NiceHash OS, not macOS. MacDualMiner gives a similar experience on a Mac (one Start button, profitability ranking, automatic switching), but you mine directly to your own wallets on regular pools. It isn't affiliated with NiceHash.
+
+### Can XMRig use the Mac's GPU?
+No. XMRig's GPU backends are OpenCL and CUDA, and RandomX doesn't benefit from the Apple GPU, so XMRig mines on the CPU only. For the GPU, MacDualMiner uses kawpow-metal (Metal) or ethminer-m1 (OpenCL).
+
+For setup, configuration and real results, see the [full MacDualMiner guide](https://cryptominingonmacs.com/viewtopic.php?t=170).
 
 ## License
 

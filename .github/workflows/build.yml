@@ -71,7 +71,7 @@ jobs:
         with:
           tag_name: ${{ steps.release.outputs.tag }}
           target_commitish: ${{ github.sha }}
-          name: MacDualMiner ${{ steps.release.outputs.tag }}
+          name: MacDualMiner ${{ steps.release.outputs.tag }} – macOS Crypto Miner for Apple Silicon
           files: build/MacDualMiner-*.zip
           generate_release_notes: true
           body_path: .github/release-notes.md
