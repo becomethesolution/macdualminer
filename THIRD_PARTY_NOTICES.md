@@ -1,6 +1,6 @@
 # Third-party software
 
-MacDualMiner's own source code is MIT-licensed. Built copies of the app bundle the following independent programs. They run as separate processes and keep their own licenses.
+MacDualMiner's own source code is licensed under the GNU General Public License v3.0 (versions 0.4.1 and earlier: MIT). Built copies of the app bundle the following independent programs. They run as separate processes and keep their own licenses.
 
 ## XMRig
 

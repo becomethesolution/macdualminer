@@ -226,4 +226,16 @@ For setup, configuration and real results, see the [full MacDualMiner guide](htt
 
 ## License
 
-MacDualMiner is MIT-licensed (see `LICENSE`). Bundled engines keep their own licenses: XMRig is GPL-3.0 and kawpow-metal is MIT. See `THIRD_PARTY_NOTICES.md`.
+Copyright © 2026 Become the Solution, LLC.
+
+MacDualMiner is free, open-source software licensed under the **GNU General Public License v3.0** (see `LICENSE`). You're free to use, study, change and share it. If you distribute a modified version, you have to release its source code under the same license and keep the copyright and license notices.
+
+Versions 0.4.1 and earlier were released under the MIT license.
+
+Bundled engines keep their own licenses: XMRig and ethminer-m1 are GPL-3.0 and kawpow-metal is MIT. See `THIRD_PARTY_NOTICES.md`.
+
+## Trademarks
+
+"MacDualMiner" and the MacDualMiner icon are trademarks of Become the Solution, LLC. The GPL covers the code, not the name or icon. If you publish a fork or a modified build, give it a different name and icon so people don't mistake it for the official app. You can still say it's "based on MacDualMiner." See `TRADEMARKS.md`.
+
+The only official downloads are the [Releases page](https://github.com/becomethesolution/macdualminer/releases) of this repository. The app's built-in updater installs only releases from this repository after checking the app, the version and the code signature.
