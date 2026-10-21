@@ -5,7 +5,9 @@
 #   INSTALL=1 scripts/release.sh   …and also install the new build to /Applications
 #   DRY_RUN=1 scripts/release.sh   build and copy only; don't publish anything
 #
-# Every build is kept in "~/Desktop/MacDualMiner Builds/<version>/" (override with MACDUALMINER_BUILDS).
+# Every build is kept in "<builds folder>/<version>/". The builds folder is the "MacDualMiner Builds" folder this
+# checkout sits in (e.g. ~/Desktop/BUILDZ/MacDualMiner Builds/MacDualMiner), otherwise
+# ~/Desktop/BUILDZ/MacDualMiner Builds. Override with MACDUALMINER_BUILDS.
 # Publishing uses the GitHub CLI (gh) if it's installed and signed in. Without it the script still builds
 # and saves everything, and you publish the zip on the repo's Releases page in a browser.
 #
@@ -16,7 +18,14 @@ cd "$(dirname "$0")/.."
 REPO="becomethesolution/macdualminer"
 VERSION="$(tr -d '[:space:]' < VERSION)"
 TAG="v$VERSION"
-DEST_ROOT="${MACDUALMINER_BUILDS:-$HOME/Desktop/MacDualMiner Builds}"
+PARENT="$(cd .. && pwd)"
+if [[ -n "${MACDUALMINER_BUILDS:-}" ]]; then
+  DEST_ROOT="$MACDUALMINER_BUILDS"
+elif [[ "$(basename "$PARENT")" == "MacDualMiner Builds" ]]; then
+  DEST_ROOT="$PARENT"
+else
+  DEST_ROOT="$HOME/Desktop/BUILDZ/MacDualMiner Builds"
+fi
 DEST="$DEST_ROOT/$VERSION"
 
 say() { printf '\n==> %s\n' "$*"; }
