@@ -144,7 +144,7 @@ INSTALL=1 scripts/release.sh     # same, and installs the new build to /Applicat
 DRY_RUN=1 scripts/release.sh     # build and save only, publish nothing
 ```
 
-Publishing uses the GitHub CLI (`brew install gh && gh auth login`, once). The in-app updater picks up the new release automatically.
+If the GitHub CLI (`gh`) is installed and signed in, the script publishes the release itself. Without it, the script still builds and saves everything and prints the link to publish the zip on the Releases page in a browser. The in-app updater picks up the new release automatically.
 
 ## First run
 

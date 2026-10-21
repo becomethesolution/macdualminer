@@ -6,7 +6,8 @@
 #   DRY_RUN=1 scripts/release.sh   build and copy only; don't publish anything
 #
 # Every build is kept in "~/Desktop/MacDualMiner Builds/<version>/" (override with MACDUALMINER_BUILDS).
-# Publishing needs the GitHub CLI, signed in once:  brew install gh && gh auth login
+# Publishing uses the GitHub CLI (gh) if it's installed and signed in. Without it the script still builds
+# and saves everything, and you publish the zip on the repo's Releases page in a browser.
 #
 # Releases are built locally rather than on GitHub Actions: GitHub has restricted Actions on this account.
 set -euo pipefail
@@ -32,9 +33,14 @@ if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
   die "this checkout isn't the same as GitHub's main branch – run 'git pull' (and 'git push' if you made commits)"
 fi
 
-if [[ "${DRY_RUN:-0}" != "1" ]]; then
-  command -v gh >/dev/null || die "the GitHub CLI isn't installed – run: brew install gh && gh auth login"
-  gh auth status >/dev/null 2>&1 || die "the GitHub CLI isn't signed in – run: gh auth login"
+PUBLISH=1
+if [[ "${DRY_RUN:-0}" == "1" ]]; then
+  PUBLISH=0
+elif ! command -v gh >/dev/null || ! gh auth status >/dev/null 2>&1; then
+  PUBLISH=0
+  echo "GitHub CLI not installed or not signed in – will build and save only; publish the release in a browser."
+fi
+if [[ "$PUBLISH" == "1" ]]; then
   if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
     die "$TAG is already released – bump VERSION to release a new build"
   fi
@@ -58,8 +64,11 @@ cp "$ZIP" "$DEST/"
 shasum -a 256 "$ZIP" | sed 's#build/##' > "$DEST/MacDualMiner-$VERSION.zip.sha256"
 echo "Saved: $DEST"
 
-if [[ "${DRY_RUN:-0}" == "1" ]]; then
-  say "Dry run – nothing published"
+if [[ "$PUBLISH" == "0" ]]; then
+  say "Not published"
+  echo "To publish: https://github.com/$REPO/releases/new?tag=$TAG"
+  echo "Title: MacDualMiner $TAG – macOS Crypto Miner for Apple Silicon"
+  echo "Attach: $DEST/MacDualMiner-$VERSION.zip   Notes: .github/release-notes.md"
   exit 0
 fi
 
