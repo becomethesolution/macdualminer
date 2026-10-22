@@ -51,6 +51,7 @@ Measured on the M5 Max: XMRig does about 7.0–7.9 kH/s with the CPU alone (abou
 
 - **NiceHash-like interface:** a sidebar, a large Start/Stop button with live profitability, and one row per device (CPU and GPU) showing coin, algorithm, engine, hashrate, watts and shares, with an on/off switch and power slider for each. It also shows your Mac's own name, model and chip details, and comes in a Dark or Light look, or follows macOS (Settings › General).
 - **Power vs Earnings chart:** power draw against gross and net $/day over the last 1, 6 or 24 hours. A point is recorded every 30 seconds and the history is kept between launches; hover to read exact values.
+- **Feedback from the app:** Help › Send Feedback… and Help › Share Your Hashrate… open a GitHub issue with the app version, Mac model, chip and macOS version already filled in (your Mac's name is left out).
 - **Help & community:** the Help menu, Settings › General and the sidebar link to the [MacDualMiner guide](https://cryptominingonmacs.com/viewtopic.php?t=170), the [CryptoMiningOnMacs.com](https://cryptominingonmacs.com/) community (the macOS crypto mining community) and GitHub Issues. Reference hashrates in Profit Check link to the tests they come from.
 - **Update check:** looks for new GitHub releases at launch and every 6 hours, or right away from Help › Check for Updates…. *Install & Restart* downloads the release, checks it's the right app, version and code signature, swaps it in and relaunches.
 - **Profit Check tab.** Every coin the engines can mine, with:

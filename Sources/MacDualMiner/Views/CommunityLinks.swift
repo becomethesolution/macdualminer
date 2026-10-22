@@ -23,6 +23,30 @@ enum CommunityLinks {
     }
 
     static func open(_ url: URL) { NSWorkspace.shared.open(url) }
+
+    /// A new GitHub issue from one of the repo's issue forms, with the app version, Mac and macOS
+    /// filled in. Nothing is sent until the user submits the issue on GitHub. The Mac's own name
+    /// is left out on purpose.
+    @MainActor
+    static func feedback(template: String = "bug_report.yml", hardware: HardwareInfo = HardwareInfo.current) -> URL {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
+        var mac: [String] = []
+        let model = hardware.modelName.isEmpty ? hardware.modelIdentifier : hardware.modelName
+        if !model.isEmpty { mac.append(model) }
+        mac.append(hardware.chipName)
+        mac.append("\(hardware.totalCores)-core CPU")
+        if let gpu = hardware.gpuCores { mac.append("\(gpu)-core GPU") }
+        mac.append("\(hardware.memoryGB) GB")
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        var parts = URLComponents(string: "https://github.com/becomethesolution/macdualminer/issues/new")!
+        parts.queryItems = [
+            URLQueryItem(name: "template", value: template),
+            URLQueryItem(name: "app-version", value: version),
+            URLQueryItem(name: "mac", value: mac.joined(separator: " · ")),
+            URLQueryItem(name: "macos", value: "macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion)"),
+        ]
+        return parts.url ?? issues
+    }
 }
 
 /// Help menu items and an About panel with a credit line.
@@ -41,7 +65,9 @@ struct CommunityCommands: Commands {
             Button("Check for Updates…") {
                 Task { await UpdateCheckAlert.run(updates: updates, coordinator: coordinator) }
             }
-            Button("Report an Issue on GitHub") { CommunityLinks.open(CommunityLinks.issues) }
+            Button("Send Feedback…") { CommunityLinks.open(CommunityLinks.feedback()) }
+            Button("Share Your Hashrate…") { CommunityLinks.open(CommunityLinks.feedback(template: "hashrate_report.yml")) }
+            Button("View Reported Issues") { CommunityLinks.open(CommunityLinks.issues) }
         }
     }
 }

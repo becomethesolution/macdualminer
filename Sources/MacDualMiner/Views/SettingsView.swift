@@ -66,7 +66,10 @@ private struct GeneralSettings: View {
                     Link(CommunityLinks.siteName, destination: CommunityLinks.tagged("https://cryptominingonmacs.com/", content: "settings"))
                 }
                 LabeledContent("Bugs and ideas") {
-                    Link("GitHub Issues", destination: CommunityLinks.issues)
+                    HStack(spacing: 12) {
+                        Link("Send feedback", destination: CommunityLinks.feedback())
+                        Link("Share your hashrate", destination: CommunityLinks.feedback(template: "hashrate_report.yml"))
+                    }
                 }
                 Text("\(CommunityLinks.siteName) is \(CommunityLinks.tagline): guides for each miner, hashrate tables for every M-series chip, and a forum for questions.")
                     .font(.caption).foregroundStyle(.secondary)

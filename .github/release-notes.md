@@ -1,6 +1,12 @@
 MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Macs (M1–M5). It mines on the CPU and GPU, ranks coins by profit after electricity and switches automatically. [Full guide with screenshots](https://cryptominingonmacs.com/viewtopic.php?t=170).
 
-## What's new in 0.4.3
+## What's new in 0.4.4
+
+- **Help › Send Feedback…** opens a new GitHub issue with your MacDualMiner version, Mac model, chip and macOS version already filled in. You just describe the problem; nothing is sent until you submit it on GitHub, and your Mac's name isn't included.
+- **Help › Share Your Hashrate…** does the same for hashrate reports, which help improve the reference numbers for each chip.
+- The same two links are in Settings › General › Help & community.
+
+## Also in 0.4.3
 
 - **Help › Check for Updates…** checks GitHub right away and tells you the result: up to date, or a new version with *Install & Restart* and *Release Notes* buttons.
 

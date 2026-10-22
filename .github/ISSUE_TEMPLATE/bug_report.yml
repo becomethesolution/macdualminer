@@ -1,0 +1,63 @@
+name: Bug report
+description: Something in MacDualMiner doesn't work the way it should.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. If you opened this from **Help › Send Feedback…** in the app, the version and Mac details are already filled in.
+        For general questions about mining on a Mac, the [CryptoMiningOnMacs.com community](https://cryptominingonmacs.com/?utm_source=github&utm_medium=issue_template) is usually faster.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: "I pressed Start Mining with Monero selected, and the CPU row stayed on \"Starting…\" for 10 minutes."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Settings › Coins & Wallets
+        2. ...
+  - type: input
+    id: app-version
+    attributes:
+      label: MacDualMiner version
+      description: Shown at the bottom of the sidebar and in MacDualMiner › About.
+      placeholder: "0.4.4"
+    validations:
+      required: true
+  - type: input
+    id: mac
+    attributes:
+      label: Mac model and chip
+      placeholder: "MacBook Pro (16-inch, M5 Max) · Apple M5 Max · 40-core GPU · 128 GB"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "macOS 26.1"
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Engine involved
+      options:
+        - Not sure / not engine-related
+        - XMRig (CPU)
+        - kawpow-metal (GPU)
+        - ethminer-m1 (GPU)
+        - UselethMiner (CPU + GPU)
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: |
+        Open the **Logs** tab, pick the engine, click **Copy** and paste the relevant lines here.
+        Before posting, remove anything private: wallet addresses, your username in file paths (/Users/yourname/...) and your Mac's name.
+      render: text

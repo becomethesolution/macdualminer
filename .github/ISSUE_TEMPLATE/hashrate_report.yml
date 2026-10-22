@@ -1,0 +1,64 @@
+name: Hashrate report
+description: Share the hashrate and power you get on your Mac, to improve the reference numbers for your chip.
+title: "[Hashrate] "
+labels: ["hashrate report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Results from real Macs make the Profit Check better for everyone with the same chip. Run **Benchmark this Mac** on the Profit Check tab, or mine for a few minutes, then fill this in.
+        Reports may be added to the hashrate tables on [CryptoMiningOnMacs.com](https://cryptominingonmacs.com/?utm_source=github&utm_medium=issue_template).
+  - type: input
+    id: mac
+    attributes:
+      label: Mac model and chip
+      placeholder: "Mac Studio (2025) · Apple M4 Max · 16-core CPU · 40-core GPU · 64 GB"
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: MacDualMiner version
+      placeholder: "0.4.4"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "macOS 26.1"
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Engine
+      options:
+        - XMRig (CPU) – RandomX
+        - XMRig (CPU) – GhostRider
+        - kawpow-metal (GPU) – KawPow
+        - ethminer-m1 (GPU) – Ethash
+        - UselethMiner (CPU + GPU) – Ethash
+    validations:
+      required: true
+  - type: input
+    id: hashrate
+    attributes:
+      label: Hashrate
+      placeholder: "7.4 kH/s"
+    validations:
+      required: true
+  - type: input
+    id: power
+    attributes:
+      label: Power (measured above idle)
+      description: Shown on the Dashboard under POWER.
+      placeholder: "90 W"
+  - type: input
+    id: power-level
+    attributes:
+      label: CPU / GPU power level
+      placeholder: "CPU 10/10, GPU 10/10"
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Low Power / High Power mode, plugged in or on battery, anything else running, etc.
