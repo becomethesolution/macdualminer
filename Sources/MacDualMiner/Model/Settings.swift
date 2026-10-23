@@ -172,6 +172,16 @@ struct MinerSettings: Codable, Equatable {
     /// EngineAlgo keys ("xmrig:RandomX") that "Benchmark this Mac" leaves out.
     var benchmarkExcluded: [String] = []
 
+    /// The first-run setup assistant was finished or closed.
+    var setupCompleted = false
+
+    /// Somewhere to be paid is set: a wallet, a Kryptex username or an unMineable address.
+    var hasPayoutDestination: Bool {
+        let filled = { (s: String) in !s.trimmingCharacters(in: .whitespaces).isEmpty }
+        return wallets.values.contains(where: filled) || filled(xmrWallet) || filled(rvnWallet)
+            || filled(kryptexAccount) || filled(unmineableAddress)
+    }
+
     // MARK: Earnings calculator
     var electricityUSDPerKWh = 0.17
     var powerSource: PowerSourceMode = .measuredIncremental

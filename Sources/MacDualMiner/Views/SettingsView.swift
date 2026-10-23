@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import ServiceManagement
 
 struct SettingsView: View {
@@ -21,6 +22,7 @@ struct SettingsView: View {
 private struct GeneralSettings: View {
     @Environment(MiningCoordinator.self) private var coordinator
     @Environment(UpdateService.self) private var updates
+    @Environment(UIState.self) private var uiState
 
     var body: some View {
         @Bindable var store = coordinator.store
@@ -66,6 +68,15 @@ private struct GeneralSettings: View {
                 }
                 Text("Updates are downloaded from this app's GitHub releases, checked for the right app, version and code signature, then swapped in and the app restarts.")
                     .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Setup") {
+                LabeledContent("Setup assistant") {
+                    Button("Run again…") {
+                        uiState.setupStep = 0
+                        uiState.showSetup = true
+                        NSApp.activate(ignoringOtherApps: true)
+                    }
+                }
             }
             Section("Help & community") {
                 LabeledContent("Setup guide") {
@@ -218,7 +229,7 @@ private struct PayoutSettings: View {
 
 /// "Pay me in" + payout address for unMineable. Shown under Payouts & worker and on the XMR page
 /// when its pool is unMineable; both edit the same settings.
-private struct UnmineablePayoutFields: View {
+struct UnmineablePayoutFields: View {
     @Environment(MiningCoordinator.self) private var coordinator
 
     var body: some View {

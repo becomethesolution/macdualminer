@@ -29,6 +29,23 @@ struct MainWindow: View {
         .tint(Theme.accent)
         .preferredColorScheme(coordinator.settings.appearance.colorScheme)
         .onChange(of: coordinator.settings.appearance) { _, mode in AppAppearance.apply(mode) }
+        .onAppear {
+            // First run with nowhere to be paid: open the setup assistant once. It stays open until closed,
+            // even after an address is entered (it's driven by showSetup, not by the check below).
+            if !coordinator.settings.setupCompleted && !coordinator.settings.hasPayoutDestination {
+                ui.showSetup = true
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { uiState.showSetup },
+            set: { shown in
+                if !shown {
+                    uiState.showSetup = false
+                    coordinator.store.settings.setupCompleted = true
+                }
+            })) {
+            SetupAssistant()
+        }
     }
 }
 

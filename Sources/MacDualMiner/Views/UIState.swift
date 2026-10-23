@@ -23,6 +23,15 @@ final class UIState {
     var selectedCoin: String?
     /// Filter above the Coins & Wallets list.
     var coinFilter: CoinFilter = .all
+    /// Setup assistant: opened on request (it also opens by itself on a first run), current step, payout choice.
+    var showSetup = false
+    var setupStep = 0
+    var setupPayout: SetupPayout = .unmineable
+}
+
+enum SetupPayout: String, CaseIterable, Identifiable {
+    case unmineable = "Any wallet (e.g. Trust Wallet)", wallet = "Coin wallets", kryptex = "Kryptex account"
+    var id: String { rawValue }
 }
 
 enum CoinFilter: String, CaseIterable, Identifiable {
