@@ -254,7 +254,8 @@ final class MiningCoordinator {
             guard currentEligible else {
                 if best.options != activePlan.options {
                     log(best.options.isEmpty ? "Paused – every ready coin loses money after electricity"
-                                             : "Mining \(best.summary) – best profitable option")
+                                             : (best.netUSDPerDay > 0 ? "Mining \(best.summary) – best profitable option"
+                                                                  : "Mining \(best.summary) – least costly option; nothing is profitable right now"))
                 }
                 recommendedPlan = nil
                 if best.options.isEmpty { return skipLosses ? .empty : manualPlan() }
