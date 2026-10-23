@@ -33,6 +33,9 @@ final class MiningCoordinator {
     private(set) var switchLog: [String] = []
     private(set) var benchmarkStatus: String?
     private(set) var benchmarkProgress: Double?
+    /// Engine being benchmarked right now (for the "Skip" button).
+    private(set) var benchmarkStepEngine: EngineKind?
+    @ObservationIgnored private var skipBenchmarkStep = false
 
     @ObservationIgnored private var loop: Task<Void, Never>?
     @ObservationIgnored private var benchmarkTask: Task<Void, Never>?
@@ -522,6 +525,7 @@ final class MiningCoordinator {
                 await self.benchmark(option, step: index + 1, of: queue.count)
             }
             self.benchmarkOption = nil
+            self.benchmarkStepEngine = nil
             self.benchmarkProgress = nil
             self.benchmarkStatus = Task.isCancelled ? "Benchmark cancelled" : "Benchmark finished – profit check updated"
             self.benchmarkTask = nil
@@ -532,18 +536,30 @@ final class MiningCoordinator {
 
     func cancelBenchmark() { benchmarkTask?.cancel() }
 
+    /// Ends the current benchmark step without recording it and moves on to the next engine.
+    /// Any earlier result for that engine is kept.
+    func skipBenchmarkStepNow() { if benchmarkTask != nil { skipBenchmarkStep = true } }
+
     private func benchmark(_ option: MiningOption, step: Int, of total: Int) async {
         let kind = option.engine
         let label = "\(step)/\(total) \(kind.displayName) on \(option.coinTag)"
         benchmarkOption = option
+        benchmarkStepEngine = kind
+        skipBenchmarkStep = false
         evaluate()
         let e = engine(kind)
         // Warm-up: RandomX dataset or DAG generation.
         let timeout: TimeInterval = kind == .useleth ? 900 : (kind == .xmrig ? 120 : 300)
         let warmStart = Date()
-        while !Task.isCancelled, e.totalHashrate <= 0, Date().timeIntervalSince(warmStart) < timeout {
+        while !Task.isCancelled, !skipBenchmarkStep, e.totalHashrate <= 0, Date().timeIntervalSince(warmStart) < timeout {
             benchmarkStatus = "\(label): warming up (\(Int(Date().timeIntervalSince(warmStart)))s)…"
+            try? await Task.sleep(for: .seconds(1))
+        }
+        if skipBenchmarkStep {
+            benchmarkStatus = "\(label): skipped"
+            e.stop()
             try? await Task.sleep(for: .seconds(3))
+            return
         }
         guard !Task.isCancelled, e.totalHashrate > 0 else {
             benchmarkStatus = "\(label): no hashrate after \(Int(timeout))s – skipped"
@@ -552,13 +568,20 @@ final class MiningCoordinator {
         }
         var cpu: [Double] = [], gpu: [Double] = [], watts: [Double] = []
         let sampleStart = Date()
-        while !Task.isCancelled, Date().timeIntervalSince(sampleStart) < 75 {
+        while !Task.isCancelled, !skipBenchmarkStep, Date().timeIntervalSince(sampleStart) < 75 {
             try? await Task.sleep(for: .seconds(5))
+            if skipBenchmarkStep { break }
             cpu.append(e.hashrate(for: .cpu)); gpu.append(e.hashrate(for: .gpu))
             if let now = system.systemWatts, let idle = system.idleBaselineWatts { watts.append(max(0, now - idle)) }
             benchmarkStatus = "\(label): measuring \(Format.hashrate(e.totalHashrate))"
         }
         guard !Task.isCancelled else { e.stop(); return }
+        if skipBenchmarkStep {
+            benchmarkStatus = "\(label): skipped – earlier result kept"
+            e.stop()
+            try? await Task.sleep(for: .seconds(3))
+            return
+        }
         let avg: ([Double]) -> Double = { $0.isEmpty ? 0 : $0.reduce(0, +) / Double($0.count) }
         // Drop the first third: hashrate is still settling right after warm-up.
         let settle: ([Double]) -> [Double] = { Array($0.dropFirst($0.count / 3)) }

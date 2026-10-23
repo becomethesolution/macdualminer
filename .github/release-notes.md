@@ -3,6 +3,7 @@ MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Mac
 ## What's new in 0.4.11
 
 - **UselethMiner fixed.** Installed from the app, UselethMiner quit at start with "dlopen … libpycfethash_armv8af.dylib (no such file)": it only runs from /usr/local/uselethminer (its compiled code loads its libraries from there, and macOS won't let it look elsewhere). **Settings › Engines › Download & install** now installs the author's package there with Apple's installer, after checking its SHA-256, so macOS asks for your password once. The old copy in the app's folder is removed automatically – if you had installed UselethMiner before, click Download & install again. Remove also asks for your password.
+- **Skip a benchmark step.** While Benchmark this Mac is running, Profit Check shows **Skip <engine>** next to Cancel: it stops the engine being tested and moves on to the next one. Useful for UselethMiner, whose first run spends several minutes building its DAG. A skipped engine keeps its earlier result, if it had one.
 - Setup messages now read "Needs your ETHW wallet" / "Needs your DOGE payout address".
 
 ## Also in 0.4.10

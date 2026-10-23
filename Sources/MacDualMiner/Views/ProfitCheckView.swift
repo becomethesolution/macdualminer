@@ -50,6 +50,10 @@ struct ProfitCheckView: View {
                     } label: { Label("Refresh", systemImage: "arrow.clockwise") }
                     .disabled(coordinator.profit.isRefreshing)
                     if coordinator.isBenchmarking {
+                        if let kind = coordinator.benchmarkStepEngine {
+                            Button { coordinator.skipBenchmarkStepNow() } label: { Label("Skip \(kind.displayName)", systemImage: "forward.end") }
+                                .help("Stop benchmarking \(kind.displayName) and go on to the next engine. Its earlier result, if any, is kept.")
+                        }
                         Button(role: .cancel) { coordinator.cancelBenchmark() } label: { Label("Cancel benchmark", systemImage: "xmark") }
                     } else {
                         Button { coordinator.runBenchmark() } label: { Label("Benchmark this Mac", systemImage: "speedometer") }
