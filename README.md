@@ -160,7 +160,7 @@ If the GitHub CLI (`gh`) is installed and signed in, the script publishes the re
 ## First run
 
 1. Open **MacDualMiner** and go to **Settings (⌘,) › Coins & Wallets**.
-2. For each coin you want to be eligible, paste a wallet address. Alternatively, enter a **Kryptex username** once, and every coin on a Kryptex pool (Monero, Zephyr, EthereumPoW, Quai) becomes eligible.
+2. Pick a coin in the list and paste a wallet address for it. Alternatively, under **Payouts & worker**, enter a **Kryptex username** once (every coin on a Kryptex pool becomes eligible: Monero, Zephyr, EthereumPoW, Quai), or turn on **Mine Monero through unMineable** to be paid in Dogecoin, Litecoin, Bitcoin and others to a Trust Wallet (or any) address.
 3. Coins without a preset pool (QRL, Neoxa, Neurai, …) need a custom pool, entered under the coin.
 4. **Settings › Earnings**: set your electricity price per kWh from your bill.
 5. Optional: under **Settings › Engines**, click *Download & install* for UselethMiner.
