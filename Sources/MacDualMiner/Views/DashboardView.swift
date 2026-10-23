@@ -223,7 +223,7 @@ private struct CoinMenu: View {
     private func title(for row: RankedOption) -> String {
         var t = "\(row.coinName) (\(row.option.coinTag)) · \(row.option.engine.displayName)"
         if row.devices.count == 2 { t += " · uses CPU + GPU" }
-        t += row.isEligible || row.canMine ? " · \(Format.usd(row.netUSDPerDay))/day" : " · \(row.status.label)"
+        t += row.canMine ? " · \(Format.usd(row.netUSDPerDay))/day" : " · \(row.status.label)"
         if !row.isEligible && row.canMine { t += " · \(row.status.label)" }
         return t
     }

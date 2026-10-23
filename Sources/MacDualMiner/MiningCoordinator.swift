@@ -338,7 +338,10 @@ final class MiningCoordinator {
             guard currentEligible else {
                 recommendedPlan = nil
                 let anyReady = rankedNow.contains { $0.isEligible }
-                let next: MiningPlan = best.options.isEmpty ? (skipLosses && anyReady ? .empty : manualPlan()) : best
+                // Fallback when nothing is ready: the manual coins, but only for the parts of the chip that are started.
+                let fallback = manualPlan().options.filter { $0.engine.devices.isSubset(of: planDevices) }
+                let next: MiningPlan = best.options.isEmpty
+                    ? (skipLosses && anyReady ? .empty : MiningPlan(options: fallback, netUSDPerDay: 0)) : best
                 if next.options != activePlan.options {
                     if best.options.isEmpty {
                         log(anyReady ? "Idle – every ready coin loses money after electricity"
