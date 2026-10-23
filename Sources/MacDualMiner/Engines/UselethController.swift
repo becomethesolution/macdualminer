@@ -41,6 +41,10 @@ final class UselethController: MiningEngine {
         process.start(
             executable: AppPaths.uselethExecutable,
             arguments: Self.arguments(for: job, threads: threads),
+            // UselethMiner loads its hashing libraries from /usr/local/uselethminer/ (where its own .pkg
+            // installs) unless PYCFETHASHLOCAL is set; then it loads them from ./ – the app's copy, which
+            // is why the working directory must be the engine folder.
+            environment: ["PYCFETHASHLOCAL": "1"],
             workingDirectory: AppPaths.uselethDirectory
         )
     }

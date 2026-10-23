@@ -1,6 +1,11 @@
 MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Macs (M1–M5). It mines on the CPU and GPU, ranks coins by profit after electricity and switches automatically. [Full guide with screenshots](https://cryptominingonmacs.com/viewtopic.php?t=170).
 
-## What's new in 0.4.10
+## What's new in 0.4.11
+
+- **UselethMiner works when installed from the app.** The in-app download keeps UselethMiner in MacDualMiner's own folder (no admin password), but UselethMiner looked for its hashing libraries only in /usr/local/uselethminer and quit at start with "dlopen … libpycfethash_armv8af.dylib (no such file)". MacDualMiner now tells it to load them from its own folder, so benchmarking and mining ETHW with UselethMiner work.
+- Setup messages now read "Needs your ETHW wallet" / "Needs your DOGE payout address".
+
+## Also in 0.4.10
 
 - **Clearer unMineable setup on the Monero page.** When Monero's pool is set to unMineable, the Monero wallet field is replaced by **Pay me in** and your payout address (for example your Dogecoin address from Trust Wallet), so the page shows the one address that actually gets paid. Your Monero wallet stays saved and comes back if you switch to another pool. It's the same setting as under Payouts & worker.
 - **Payout address check.** The payout address is checked against the coin you picked (Dogecoin, Litecoin, Bitcoin, Tron, Solana and others), so pasting an address for the wrong coin shows a warning right away.
