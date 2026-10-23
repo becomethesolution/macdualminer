@@ -502,21 +502,43 @@ final class MiningCoordinator {
 
     // MARK: - Benchmark
 
+    /// Engine + algorithm pairs whose engine is installed (what "Benchmark this Mac" can include).
+    var benchmarkablePairs: [EngineAlgo] {
+        EngineAlgo.all.filter { FileManager.default.isExecutableFile(atPath: $0.engine.executable.path) }
+    }
+
     /// Runs each installed engine on its best ready coin, one at a time, measuring hashrate and power.
+    /// Pairs switched off in the benchmark menu (settings.benchmarkExcluded) are left out.
     func runBenchmark() {
         guard benchmarkTask == nil else { return }
         let rankedNow = ranked
         var queue: [MiningOption] = []
         // One run per engine + algorithm pair (e.g. XMRig on RandomX and on GhostRider), using its best ready coin.
-        for pair in EngineAlgo.all where FileManager.default.isExecutableFile(atPath: pair.engine.executable.path) {
+        for pair in benchmarkablePairs where !settings.benchmarkExcluded.contains(pair.key) {
             if let best = rankedNow.first(where: { $0.option.engineAlgo == pair && settings.readinessProblem($0.option) == nil }) {
                 queue.append(best.option)
             }
         }
         guard !queue.isEmpty else {
-            benchmarkStatus = "Nothing to benchmark – add a wallet or Kryptex account for at least one coin"
+            benchmarkStatus = settings.benchmarkExcluded.isEmpty
+                ? "Nothing to benchmark – add a wallet or Kryptex account for at least one coin"
+                : "Nothing to benchmark – every engine with a ready coin is switched off in the benchmark menu"
             return
         }
+        startBenchmark(queue)
+    }
+
+    /// Benchmarks one coin's engine on its own (the per-row "Benchmark" on Profit Check).
+    func benchmarkOnly(_ option: MiningOption) {
+        guard benchmarkTask == nil else { return }
+        if let problem = settings.readinessProblem(option) {
+            benchmarkStatus = "Can't benchmark \(option.coinTag): \(problem)"
+            return
+        }
+        startBenchmark([option])
+    }
+
+    private func startBenchmark(_ queue: [MiningOption]) {
         benchmarkTask = Task { [weak self] in
             guard let self else { return }
             for (index, option) in queue.enumerated() {

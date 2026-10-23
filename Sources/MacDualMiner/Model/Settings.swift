@@ -169,6 +169,9 @@ struct MinerSettings: Codable, Equatable {
     var preventSleep = true
     var startMiningOnLaunch = false
 
+    /// EngineAlgo keys ("xmrig:RandomX") that "Benchmark this Mac" leaves out.
+    var benchmarkExcluded: [String] = []
+
     // MARK: Earnings calculator
     var electricityUSDPerKWh = 0.17
     var powerSource: PowerSourceMode = .measuredIncremental

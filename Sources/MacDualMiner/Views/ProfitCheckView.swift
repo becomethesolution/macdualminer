@@ -84,6 +84,24 @@ struct ProfitCheckView: View {
                     } else {
                         Button { coordinator.runBenchmark() } label: { Label("Benchmark this Mac", systemImage: "speedometer") }
                             .help("Runs each engine for ~2 minutes on its best ready coin and records hashrate and power")
+                        Menu {
+                            Section("Include in the benchmark") {
+                                ForEach(coordinator.benchmarkablePairs, id: \.key) { pair in
+                                    Toggle("\(pair.engine.displayName) · \(pair.algorithm.rawValue)", isOn: Binding(
+                                        get: { !coordinator.settings.benchmarkExcluded.contains(pair.key) },
+                                        set: { include in
+                                            var excluded = coordinator.store.settings.benchmarkExcluded.filter { $0 != pair.key }
+                                            if !include { excluded.append(pair.key) }
+                                            coordinator.store.settings.benchmarkExcluded = excluded
+                                        }))
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "slider.horizontal.3")
+                        }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
+                        .help("Choose which engines Benchmark this Mac runs. Right-click a coin to benchmark just that one.")
                     }
                 }
                 if let progress = coordinator.benchmarkProgress {
@@ -183,6 +201,10 @@ private struct ProfitRow: View {
                     Link(r.estimate.source.label, destination: url)
                         .font(.caption).lineLimit(1)
                         .tint(Theme.accent)
+                } else if r.estimate.source == .none && r.isEligible && !coordinator.isBenchmarking {
+                    Button("Benchmark") { coordinator.benchmarkOnly(r.option) }
+                        .buttonStyle(.link).font(.caption)
+                        .help("Measure \(r.option.engine.displayName) on this Mac now (about 2 minutes)")
                 } else {
                     Text(r.estimate.source.label).font(.caption).lineLimit(1)
                         .foregroundStyle(r.estimate.source == .reference ? Theme.accent : Color.secondary)
@@ -226,5 +248,10 @@ private struct ProfitRow: View {
         .font(.callout)
         .padding(.vertical, 7)
         .opacity(r.isEligible ? 1 : 0.65)
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button("Benchmark \(r.option.engine.displayName) on \(r.option.coinTag)") { coordinator.benchmarkOnly(r.option) }
+                .disabled(!r.isEligible || coordinator.isBenchmarking)
+        }
     }
 }
