@@ -19,6 +19,8 @@ final class UIState {
     var chartSelection: Date?
     var updateDismissed = false
     var settingsTab: SettingsTab = .general
+    /// Coin selected in Settings › Coins & Wallets (nil = Payouts & worker).
+    var selectedCoin: String?
 }
 
 enum SettingsTab: Hashable {

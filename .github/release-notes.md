@@ -1,6 +1,12 @@
 MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Macs (M1–M5). It mines on the CPU and GPU, ranks coins by profit after electricity and switches automatically. [Full guide with screenshots](https://cryptominingonmacs.com/viewtopic.php?t=170).
 
-## What's new in 0.4.8
+## What's new in 0.4.9
+
+- **Get paid into Trust Wallet (or any wallet) in another coin.** Settings › Coins & Wallets › Payouts & worker has a new **unMineable** option: your Mac keeps mining Monero on the CPU, and unMineable pays you in Dogecoin, Litecoin, Bitcoin, Tron, Solana and more, to the address you enter. No Monero wallet needed. Earnings are the same as Monero, less unMineable's fee of about 1%.
+- **Reorganized Coins & Wallets.** A compact list on the left, grouped into CPU, GPU and *More coins (bring your own pool)*, with a ready / needs-setup dot and each coin's current net per day, sorted best first, plus an All / Ready / Needs setup filter. The selected coin's wallet and pool are on the right. Worker name, Kryptex and unMineable are under **Payouts & worker** at the top.
+- The **Set it up in Coins & Wallets** link under a device now opens that coin directly. The Settings window is a little wider to fit the new layout.
+
+## Also in 0.4.8
 
 - **Auto-switch on/off per chip.** The Auto-switching panel on the Dashboard has a **CPU auto-switch** and a **GPU auto-switch** toggle. Turning one off keeps that chip on the coin it's mining now; turning it on lets it switch to the best coin again. It's the same setting as picking a coin (or Auto) in the chip's coin menu, so the two always match.
 

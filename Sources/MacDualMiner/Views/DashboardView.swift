@@ -321,6 +321,7 @@ private struct DeviceRow: View {
                             Text("\(better.coinName) would earn about \(Format.usd(better.netUSDPerDay))/day (\(better.status.label)).")
                             Button("Set it up in Coins & Wallets") {
                                 uiState.settingsTab = .coins
+                                uiState.selectedCoin = better.option.coinTag
                                 openSettings()
                             }
                             .buttonStyle(.link)

@@ -84,6 +84,9 @@ struct MinerSettings: Codable, Equatable {
     var wallets: [String: String] = [:]
     /// Kryptex username/email – used for any coin on a Kryptex pool that has no wallet of its own.
     var kryptexAccount = ""
+    /// unMineable payout: the coin to be paid in and the address to pay it to (e.g. in Trust Wallet).
+    var unmineablePayoutCoin = "DOGE"
+    var unmineableAddress = ""
     /// Chosen pool preset id per coin, or "custom".
     var poolChoice: [String: String] = [:]
     var customPools: [String: CustomPool] = [:]
@@ -252,6 +255,10 @@ struct MinerSettings: Codable, Equatable {
         guard let pool = pool(for: coin) else { return "Needs a pool" }
         if option.engine == .useleth && pool.tls { return "UselethMiner can't use TLS pools" }
         if option.engine == .kawpow && pool.tls { return "kawpow-metal can't use TLS pools" }
+        if pool.paysViaUnmineable {
+            return unmineableAddress.trimmingCharacters(in: .whitespaces).isEmpty
+                ? "Needs an unMineable payout address" : nil
+        }
         let hasWallet = !wallet(for: coin.tag).isEmpty
         let canUseKryptex = pool.acceptsKryptexAccount && !kryptexAccount.trimmingCharacters(in: .whitespaces).isEmpty
         if !hasWallet && !canUseKryptex { return "Needs a \(coin.tag) wallet" }
@@ -262,7 +269,12 @@ struct MinerSettings: Codable, Equatable {
     func job(for option: MiningOption) -> MiningJob? {
         guard readinessProblem(option) == nil, let coin = option.coin, let pool = pool(for: coin) else { return nil }
         let own = wallet(for: coin.tag)
-        let payTo = own.isEmpty ? kryptexAccount.trimmingCharacters(in: .whitespaces) : own
+        let payTo: String
+        if pool.paysViaUnmineable {
+            payTo = unmineablePayoutCoin + ":" + unmineableAddress.trimmingCharacters(in: .whitespaces)
+        } else {
+            payTo = own.isEmpty ? kryptexAccount.trimmingCharacters(in: .whitespaces) : own
+        }
         let worker = effectiveWorkerName
         return MiningJob(option: option, poolAddress: pool.address, tls: pool.tls, poolFeePercent: pool.feePercent,
                          login: PoolLogin.build(template: pool.userTemplate, wallet: payTo, worker: worker),

@@ -122,6 +122,8 @@ struct PoolPreset: Codable, Hashable, Identifiable {
     var feePercent: Double
     var userTemplate: String     // e.g. "{wallet}/{worker}" (Kryptex) or "{wallet}.{worker}"
     var acceptsKryptexAccount: Bool = false
+    /// unMineable: paid in another coin to the payout address in Coins & Wallets › Payouts.
+    var paysViaUnmineable: Bool = false
 }
 
 struct CoinSpec: Identifiable, Hashable {
@@ -148,6 +150,15 @@ struct UnsupportedCoin: Hashable {
     let reason: String
 }
 
+/// Coins unMineable can pay Monero mining out in, to an address in a wallet such as Trust Wallet.
+enum UnmineablePayout {
+    static let coins: [(tag: String, name: String)] = [
+        ("DOGE", "Dogecoin"), ("LTC", "Litecoin"), ("BTC", "Bitcoin"), ("BCH", "Bitcoin Cash"), ("TRX", "Tron"),
+        ("SOL", "Solana"), ("ADA", "Cardano"), ("DASH", "Dash"), ("DGB", "DigiByte"), ("ETC", "Ethereum Classic"),
+        ("RVN", "Ravencoin"), ("ZEC", "Zcash"),
+    ]
+}
+
 enum CoinCatalog {
     private static let kryptex = "Kryptex"
 
@@ -157,6 +168,7 @@ enum CoinCatalog {
                  pools: [
                     PoolPreset(id: "supportxmr", name: "SupportXMR", address: "pool.supportxmr.com:443", tls: true, feePercent: 0.6, userTemplate: "{wallet}"),
                     PoolPreset(id: "kryptex", name: kryptex, address: "xmr.kryptex.network:7029", tls: false, feePercent: 1, userTemplate: "{wallet}/{worker}", acceptsKryptexAccount: true),
+                    PoolPreset(id: "unmineable", name: "unMineable – paid in another coin", address: "rx.unmineable.com:443", tls: true, feePercent: 1, userTemplate: "{wallet}.{worker}", paysViaUnmineable: true),
                  ],
                  walletHint: "4… or 8… (95 characters)", note: nil, experimental: false, xmrigAlgo: "rx/0"),
         CoinSpec(tag: "XTM", name: "Tari (RandomX)", algorithm: .tariRandomX, engines: [.xmrig],

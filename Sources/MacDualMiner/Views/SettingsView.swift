@@ -89,32 +89,137 @@ private struct GeneralSettings: View {
 }
 
 /// One row per coin: algorithm, engines, wallet and pool.
+/// Coins & Wallets: a list of coins (with a Payouts entry first) on the left, the selected one's settings on the right.
 private struct CoinsSettings: View {
+    @Environment(MiningCoordinator.self) private var coordinator
+    @Environment(UIState.self) private var uiState
+    @State private var filter: CoinFilter = .all
+
+    enum CoinFilter: String, CaseIterable, Identifiable {
+        case all = "All", ready = "Ready", needsSetup = "Needs setup"
+        var id: String { rawValue }
+    }
+
+    static let payoutsID = "__payouts"
+
+    var body: some View {
+        @Bindable var ui = uiState
+        let s = coordinator.settings
+        let coins = CoinCatalog.coins.filter { coin in
+            let ready = isReady(coin, s)
+            switch filter {
+            case .all: return true
+            case .ready: return ready
+            case .needsSetup: return !ready
+            }
+        }.sorted { bestNet($0) > bestNet($1) }
+        let withPools = coins.filter { !$0.pools.isEmpty }
+        let cpu = withPools.filter { $0.engines.first?.devices.contains(.cpu) == true && $0.engines.first?.devices.count == 1 }
+        let gpu = withPools.filter { !cpu.contains($0) }
+        let byo = coins.filter { $0.pools.isEmpty }
+
+        HStack(spacing: 0) {
+            VStack(spacing: 6) {
+                Picker("Show", selection: $filter) {
+                    ForEach(CoinFilter.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
+                List(selection: Binding<String?>(get: { ui.selectedCoin ?? Self.payoutsID }, set: { ui.selectedCoin = $0 })) {
+                    Label("Payouts & worker", systemImage: "person.crop.circle").tag(Self.payoutsID)
+                    if !cpu.isEmpty { Section("CPU") { ForEach(cpu) { CoinListRow(coin: $0).tag($0.tag) } } }
+                    if !gpu.isEmpty { Section("GPU") { ForEach(gpu) { CoinListRow(coin: $0).tag($0.tag) } } }
+                    if !byo.isEmpty { Section("More coins (bring your own pool)") { ForEach(byo) { CoinListRow(coin: $0).tag($0.tag) } } }
+                }
+                .listStyle(.sidebar)
+            }
+            .frame(width: 250)
+            Divider()
+            Group {
+                if let tag = ui.selectedCoin, tag != Self.payoutsID, let coin = CoinCatalog.coin(tag) {
+                    Form { CoinRow(coin: coin) }.formStyle(.grouped)
+                } else {
+                    PayoutSettings()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private func isReady(_ coin: CoinSpec, _ s: MinerSettings) -> Bool {
+        coin.engines.contains { s.readinessProblem(MiningOption(engine: $0, coinTag: coin.tag)) == nil }
+    }
+
+    private func bestNet(_ coin: CoinSpec) -> Double {
+        coordinator.ranked.filter { $0.option.coinTag == coin.tag }.map(\.netUSDPerDay).max() ?? -.infinity
+    }
+}
+
+/// One coin in the Coins & Wallets list: status dot, name and current net per day.
+private struct CoinListRow: View {
+    @Environment(MiningCoordinator.self) private var coordinator
+    let coin: CoinSpec
+
+    var body: some View {
+        let s = coordinator.settings
+        let ready = coin.engines.contains { s.readinessProblem(MiningOption(engine: $0, coinTag: coin.tag)) == nil }
+        let net = coordinator.ranked.filter { $0.option.coinTag == coin.tag }.map(\.netUSDPerDay).max()
+        HStack(spacing: 6) {
+            Circle().fill(ready ? Theme.profit : Theme.accent).frame(width: 7, height: 7)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 4) {
+                    Text(coin.tag).fontWeight(.semibold)
+                    if coin.experimental {
+                        Text("beta").font(.caption2).padding(.horizontal, 3).background(Theme.accent.opacity(0.2), in: Capsule())
+                    }
+                }
+                Text(coin.name).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            if let net {
+                Text(Format.usd(net) + "/day").font(.caption).monospacedDigit()
+                    .foregroundStyle(net >= 0 ? Theme.profit : Color.secondary)
+            }
+        }
+        .help(ready ? "\(coin.name) is ready to mine" : "\(coin.name) needs a wallet or pool")
+    }
+}
+
+/// Worker name and the accounts that can receive payouts for several coins.
+private struct PayoutSettings: View {
     @Environment(MiningCoordinator.self) private var coordinator
 
     var body: some View {
         @Bindable var store = coordinator.store
+        let viaUnmineable = Binding<Bool>(
+            get: { store.settings.poolChoice["XMR"] == "unmineable" },
+            set: { on in store.settings.poolChoice["XMR"] = on ? "unmineable" : nil })
         Form {
-            Section {
+            Section("Worker") {
                 TextField("Worker name", text: $store.settings.workerName, prompt: Text(HardwareInfo.current.defaultWorkerName))
-                TextField("Kryptex account (username)", text: $store.settings.kryptexAccount, prompt: Text("optional"))
-                Text("Coins on a Kryptex pool with no wallet of their own are paid to this Kryptex account, which can auto-convert to BTC (not QUAI). Use your Kryptex username rather than an email for ethminer and UselethMiner.")
+                Text("Shown on pool dashboards so you can tell your Macs apart. Leave empty to use this Mac's name.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            ForEach(Algorithm.allCases) { algorithm in
-                Section("\(algorithm.rawValue) – " + engines(for: algorithm)) {
-                    ForEach(CoinCatalog.coins.filter { $0.algorithm == algorithm }) { coin in
-                        CoinRow(coin: coin)
-                    }
+            Section("Kryptex") {
+                TextField("Kryptex username", text: $store.settings.kryptexAccount, prompt: Text("optional"))
+                Text("Coins on a Kryptex pool with no wallet of their own are paid to this Kryptex account, which can auto-convert to BTC (not QUAI). Use your username rather than an email for ethminer and UselethMiner.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Get paid in another coin (unMineable)") {
+                Toggle("Mine Monero through unMineable", isOn: viaUnmineable)
+                Picker("Pay me in", selection: $store.settings.unmineablePayoutCoin) {
+                    ForEach(UnmineablePayout.coins, id: \.tag) { Text("\($0.name) (\($0.tag))").tag($0.tag) }
                 }
+                TextField("Payout address", text: $store.settings.unmineableAddress,
+                          prompt: Text("Your \(store.settings.unmineablePayoutCoin) address, e.g. from Trust Wallet"))
+                    .textFieldStyle(.roundedBorder)
+                Text("Your Mac still mines Monero on the CPU; unMineable converts it and pays the coin you pick to this address once your balance passes its minimum for that coin. No Monero wallet needed. Earnings are the same as mining Monero, less unMineable's fee of about 1%.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
-    }
-
-    private func engines(for algorithm: Algorithm) -> String {
-        EngineKind.allCases.filter { $0.algorithms.contains(algorithm.hashFamily) }
-            .map { "\($0.displayName) (\($0.deviceLabel))" }.joined(separator: ", ")
     }
 }
 
@@ -171,6 +276,11 @@ private struct CoinRow: View {
                 }
                 TextField("Login format", text: custom.userTemplate, prompt: Text("{wallet}.{worker}"))
                 Text("Use {wallet} and {worker}. Most pools take {wallet}.{worker}; Kryptex takes {wallet}/{worker}.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if store.settings.pool(for: coin)?.paysViaUnmineable == true {
+                Label("Paid in \(store.settings.unmineablePayoutCoin) via unMineable – set the payout coin and address under Payouts & worker. The wallet above isn't used.",
+                      systemImage: "arrow.triangle.swap")
                     .font(.caption).foregroundStyle(.secondary)
             }
             if let note = coin.note { Text(note).font(.caption).foregroundStyle(.secondary) }

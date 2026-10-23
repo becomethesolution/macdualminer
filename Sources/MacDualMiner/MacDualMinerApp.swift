@@ -31,7 +31,7 @@ struct MacDualMinerApp: App {
                 .environment(appDelegate.coordinator)
                 .environment(appDelegate.ui)
                 .environment(appDelegate.updates)
-                .frame(width: 680, height: 620)
+                .frame(width: 780, height: 620)
                 .preferredColorScheme(appDelegate.coordinator.settings.appearance.colorScheme)
         }
     }
