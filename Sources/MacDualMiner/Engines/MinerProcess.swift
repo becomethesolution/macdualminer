@@ -31,7 +31,8 @@ final class MinerProcess {
     @ObservationIgnored var onLine: ((String) -> Void)?
 
     @ObservationIgnored private var process: Process?
-    @ObservationIgnored private var launch: (exe: URL, args: [String], env: [String: String], cwd: URL)?
+    @ObservationIgnored private var launch: (exe: URL, args: [String], env: [String: String], cwd: URL, pty: Bool)?
+    @ObservationIgnored private var ptySource: DispatchSourceRead?
     @ObservationIgnored private var partialLine = ""
     @ObservationIgnored private var stopRequested = false
     @ObservationIgnored private var consecutiveFailures = 0
@@ -78,9 +79,12 @@ final class MinerProcess {
         }
     }
 
-    func start(executable: URL, arguments: [String], environment: [String: String] = [:], workingDirectory: URL) {
+    /// `pseudoTerminal`: give the engine a terminal instead of a pipe. Engines that buffer their output when
+    /// it isn't a terminal (UselethMiner, a compiled Python program) then print each line as it happens.
+    func start(executable: URL, arguments: [String], environment: [String: String] = [:], workingDirectory: URL,
+               pseudoTerminal: Bool = false) {
         stop()
-        launch = (executable, arguments, environment, workingDirectory)
+        launch = (executable, arguments, environment, workingDirectory, pseudoTerminal)
         stopRequested = false
         consecutiveFailures = 0
         spawn()
@@ -123,19 +127,28 @@ final class MinerProcess {
         for (key, value) in launch.env { env[key] = value }
         proc.environment = env
 
-        let pipe = Pipe()
-        proc.standardOutput = pipe
-        proc.standardError = pipe
         proc.standardInput = FileHandle.nullDevice
-
-        pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
-            let data = handle.availableData
-            guard !data.isEmpty else {
-                handle.readabilityHandler = nil
-                return
+        var ptyMaster: Int32 = -1
+        var ptySlave: FileHandle?
+        if launch.pty, let (master, slave) = Self.openPseudoTerminal() {
+            ptyMaster = master
+            let handle = FileHandle(fileDescriptor: slave, closeOnDealloc: true)
+            proc.standardOutput = handle
+            proc.standardError = handle
+            ptySlave = handle
+        } else {
+            let pipe = Pipe()
+            proc.standardOutput = pipe
+            proc.standardError = pipe
+            pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
+                let data = handle.availableData
+                guard !data.isEmpty else {
+                    handle.readabilityHandler = nil
+                    return
+                }
+                let text = String(decoding: data, as: UTF8.self)
+                Task { @MainActor [weak self] in self?.ingest(text) }
             }
-            let text = String(decoding: data, as: UTF8.self)
-            Task { @MainActor [weak self] in self?.ingest(text) }
         }
 
         proc.terminationHandler = { [weak self] finished in
@@ -145,6 +158,9 @@ final class MinerProcess {
 
         do {
             try proc.run()
+            // The child has its own copy of the terminal; closing ours lets reads end when the engine exits.
+            try? ptySlave?.close()
+            if ptyMaster >= 0 { readPseudoTerminal(ptyMaster) }
             EngineReaper.record(pid: proc.processIdentifier)
             process = proc
             updateThrottle()
@@ -152,8 +168,45 @@ final class MinerProcess {
             state = .running
             append("— \(name) started: \(launch.exe.lastPathComponent) \(redacted(launch.args).joined(separator: " "))")
         } catch {
+            try? ptySlave?.close()
+            if ptyMaster >= 0 { close(ptyMaster) }
             state = .failed(error.localizedDescription)
         }
+    }
+
+    /// Opens a pseudo-terminal with output post-processing and echo off (no "\r\n" rewriting).
+    nonisolated private static func openPseudoTerminal() -> (master: Int32, slave: Int32)? {
+        var master: Int32 = -1
+        var slave: Int32 = -1
+        guard openpty(&master, &slave, nil, nil, nil) == 0 else { return nil }
+        var attrs = termios()
+        if tcgetattr(slave, &attrs) == 0 {
+            attrs.c_oflag &= ~tcflag_t(OPOST)
+            attrs.c_lflag &= ~tcflag_t(ECHO)
+            _ = tcsetattr(slave, TCSANOW, &attrs)
+        }
+        _ = fcntl(master, F_SETFD, FD_CLOEXEC)
+        return (master, slave)
+    }
+
+    /// Reads the terminal with read(2): once the engine exits a terminal read fails with EIO, which
+    /// FileHandle would raise as an exception instead of returning end-of-file.
+    private func readPseudoTerminal(_ fd: Int32) {
+        ptySource?.cancel()
+        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: DispatchQueue.global(qos: .utility))
+        source.setEventHandler { [weak self] in
+            var buffer = [UInt8](repeating: 0, count: 16_384)
+            let count = read(fd, &buffer, buffer.count)
+            if count > 0 {
+                let text = String(decoding: buffer[0..<count], as: UTF8.self)
+                Task { @MainActor [weak self] in self?.ingest(text) }
+            } else if count == 0 || (errno != EAGAIN && errno != EINTR) {
+                source.cancel()   // Dispatch releases this handler once cancelled
+            }
+        }
+        source.setCancelHandler { close(fd) }
+        source.resume()
+        ptySource = source
     }
 
     private func handleExit(of finished: Process, status: Int32) {

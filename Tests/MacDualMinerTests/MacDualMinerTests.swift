@@ -120,6 +120,14 @@ final class EngineParsingTests: XCTestCase {
         XCTAssertEqual(u.gpuMeter.latest, 31_982_661)
     }
 
+    @MainActor func testUselethCountsSubmittedShares() {
+        let u = UselethController()
+        u.parse("[2026-10-23 05:10:59][acct/m5max@ethw.kryptex.network:7034(0)][SUBMIT] epoch:34b header:304b hash:0000 nonce:2d450000048a04b7 difficulty:4.88874/0.49999")
+        u.parse("[2026-10-23 05:11:40][SUBMIT] JOB NOT FOUND")
+        XCTAssertEqual(u.acceptedShares, 1)
+        XCTAssertEqual(u.rejectedShares, 1)
+    }
+
     func testUselethArguments() {
         let job = MiningJob(option: MiningOption(engine: .useleth, coinTag: "ETHW"), poolAddress: "ethw.kryptex.network:7034",
                             tls: false, poolFeePercent: 1, login: "acct/mac", worker: "mac")

@@ -41,7 +41,8 @@ final class UselethController: MiningEngine {
         process.start(
             executable: AppPaths.uselethExecutable,
             arguments: Self.arguments(for: job, threads: threads),
-            workingDirectory: AppPaths.uselethDirectory
+            workingDirectory: AppPaths.uselethDirectory,
+            pseudoTerminal: true   // otherwise it prints in ~1-minute bursts and the stats lag
         )
     }
 
@@ -74,8 +75,11 @@ final class UselethController: MiningEngine {
             return
         }
         let lower = line.lowercased()
-        if lower.contains("accepted") { acceptedShares += 1 }
-        else if lower.contains("rejected") { rejectedShares += 1 }
+        // UselethMiner never logs the pool's verdict – only "[SUBMIT] epoch:… hash:… nonce:…" when it sends a
+        // share – so its share count is shares submitted. Its own submit errors count as rejected.
+        if line.contains("[SUBMIT] epoch:") { acceptedShares += 1 }
+        else if line.contains("[SUBMIT] DIFFICULTY ERROR") || line.contains("[SUBMIT] JOB NOT FOUND")
+                    || line.contains("does not exist") || line.contains("does not match job") { rejectedShares += 1 }
         else if line.contains("Loading DAG") { phase = "Loading DAG…" }
         else if line.contains("Loaded DAG") { phase = "DAG loaded – starting threads" }
         else if line.contains("[SUBSCRIBE]") || line.contains("Connected") { phase = "Connected to pool" }
