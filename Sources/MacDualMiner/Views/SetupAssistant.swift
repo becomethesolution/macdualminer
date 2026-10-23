@@ -17,15 +17,16 @@ struct SetupAssistant: View {
                 Spacer()
                 Text("Step \(step + 1) of \(titles.count)").font(.caption).foregroundStyle(.secondary)
             }
-            Group {
-                switch step {
-                case 0: electricity
-                case 1: payout
-                default: benchmark
+            ScrollView {
+                Group {
+                    switch step {
+                    case 0: electricity
+                    case 1: payout
+                    default: benchmark
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            Spacer(minLength: 0)
             HStack {
                 Button("Set up later") { finish() }
                     .help("Close the assistant. Everything here is also in Settings, and Settings › General can open it again.")
@@ -44,12 +45,13 @@ struct SetupAssistant: View {
                         coordinator.runBenchmark()
                     }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(!coordinator.settings.hasPayoutDestination)
+                    .disabled(!coordinator.settings.canMineSomething)
                 }
             }
         }
         .padding(24)
-        .frame(width: 560, height: 430)
+        .frame(width: 580)
+        .frame(minHeight: 460)
     }
 
     private var electricity: some View {
@@ -76,9 +78,6 @@ struct SetupAssistant: View {
         let rvnWallet = Binding<String>(
             get: { store.settings.wallet(for: "RVN") },
             set: { store.settings.wallets["RVN"] = $0; store.settings.rvnWallet = $0 })
-        let viaUnmineable = Binding<Bool>(
-            get: { store.settings.poolChoice["XMR"] == "unmineable" },
-            set: { store.settings.poolChoice["XMR"] = $0 ? "unmineable" : nil })
         return VStack(alignment: .leading, spacing: 12) {
             Picker("Get paid", selection: $ui.setupPayout) {
                 ForEach(SetupPayout.allCases) { Text($0.rawValue).tag($0) }
@@ -89,7 +88,6 @@ struct SetupAssistant: View {
             case .unmineable:
                 Text("Your Mac mines Monero on the CPU and unMineable pays you in a coin your wallet already holds – Dogecoin, Litecoin, Bitcoin and others. Good for Trust Wallet, which has no Monero.")
                     .font(.callout)
-                Toggle("Mine Monero through unMineable", isOn: viaUnmineable)
                 Form { UnmineablePayoutFields() }
                     .formStyle(.columns)
             case .wallet:
@@ -105,9 +103,36 @@ struct SetupAssistant: View {
                 TextField("Kryptex username", text: $store.settings.kryptexAccount, prompt: Text("your Kryptex username"))
                     .textFieldStyle(.roundedBorder)
             }
-            if !store.settings.hasPayoutDestination {
-                Text("Nothing can be mined until one of these is filled in.").font(.caption).foregroundStyle(.secondary)
+            if !store.settings.canMineSomething {
+                Text("Nothing can be mined until this is filled in.").font(.caption).foregroundStyle(.secondary)
+            } else {
+                Label("Ready to mine", systemImage: "checkmark.circle").font(.caption).foregroundStyle(Theme.profit)
             }
+        }
+        // The tab picks how Monero (the CPU coin) is paid, so what's entered here makes a coin ready.
+        // Re-running setup starts on the tab that matches the current setup and changes nothing by itself.
+        .onAppear {
+            if store.settings.hasPayoutDestination { ui.setupPayout = currentPayoutChoice() }
+            else { applyPayoutChoice(ui.setupPayout) }
+        }
+        .onChange(of: ui.setupPayout) { _, choice in applyPayoutChoice(choice) }
+    }
+
+    private func currentPayoutChoice() -> SetupPayout {
+        switch coordinator.settings.poolChoice["XMR"] {
+        case "unmineable": return .unmineable
+        case "kryptex": return .kryptex
+        default: return .wallet
+        }
+    }
+
+    private func applyPayoutChoice(_ choice: SetupPayout) {
+        guard choice != currentPayoutChoice() else { return }   // also keeps a custom Monero pool
+        let settings = coordinator.store
+        switch choice {
+        case .unmineable: settings.settings.poolChoice["XMR"] = "unmineable"
+        case .wallet: settings.settings.poolChoice["XMR"] = nil          // SupportXMR, the default
+        case .kryptex: settings.settings.poolChoice["XMR"] = "kryptex"
         }
     }
 
@@ -116,7 +141,7 @@ struct SetupAssistant: View {
             Text("The benchmark runs each engine for about two minutes on its own, so Profit Check ranks coins with this Mac's real hashrate and power instead of reference numbers.")
             Text("Your Mac gets warm and its fans may spin up while it runs. You can skip an engine or cancel at any time on the Profit Check tab.")
                 .font(.callout).foregroundStyle(.secondary)
-            if !coordinator.settings.hasPayoutDestination {
+            if !coordinator.settings.canMineSomething {
                 Label("Add somewhere to get paid first (step 2) – the benchmark mines real shares.", systemImage: "exclamationmark.circle")
                     .font(.callout).foregroundStyle(Theme.accent)
             }

@@ -92,6 +92,8 @@ final class MinerProcess {
 
     func stop() {
         stopRequested = true
+        ptySource?.cancel()
+        ptySource = nil
         restartTask?.cancel()
         restartTask = nil
         throttleTask?.cancel()
@@ -204,7 +206,11 @@ final class MinerProcess {
                 source.cancel()   // Dispatch releases this handler once cancelled
             }
         }
-        source.setCancelHandler { close(fd) }
+        source.setCancelHandler { [weak self] in
+            close(fd)
+            // Output can still be queued when the exit is noticed – flush the last partial line here instead.
+            Task { @MainActor [weak self] in self?.flushPartialLine() }
+        }
         source.resume()
         ptySource = source
     }
@@ -214,7 +220,7 @@ final class MinerProcess {
         guard finished === process else { return } // an old process we already replaced
         process = nil
         startedAt = nil
-        flushPartialLine()
+        if ptySource == nil { flushPartialLine() }   // pty output is flushed when its reader ends
         if stopRequested {
             state = .stopped
             return

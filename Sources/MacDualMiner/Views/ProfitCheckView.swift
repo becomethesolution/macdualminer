@@ -99,7 +99,9 @@ struct ProfitCheckView: View {
                         } label: {
                             Image(systemName: "slider.horizontal.3")
                         }
-                        .menuStyle(.borderlessButton)
+                        .menuStyle(.button)
+                        .buttonStyle(.borderless)
+                        .menuIndicator(.hidden)
                         .fixedSize()
                         .help("Choose which engines Benchmark this Mac runs. Right-click a coin to benchmark just that one.")
                     }
@@ -201,7 +203,7 @@ private struct ProfitRow: View {
                     Link(r.estimate.source.label, destination: url)
                         .font(.caption).lineLimit(1)
                         .tint(Theme.accent)
-                } else if r.estimate.source == .none && r.isEligible && !coordinator.isBenchmarking {
+                } else if r.estimate.source == .none && coordinator.settings.readinessProblem(r.option) == nil && !coordinator.isBenchmarking {
                     Button("Benchmark") { coordinator.benchmarkOnly(r.option) }
                         .buttonStyle(.link).font(.caption)
                         .help("Measure \(r.option.engine.displayName) on this Mac now (about 2 minutes)")
@@ -251,7 +253,7 @@ private struct ProfitRow: View {
         .contentShape(Rectangle())
         .contextMenu {
             Button("Benchmark \(r.option.engine.displayName) on \(r.option.coinTag)") { coordinator.benchmarkOnly(r.option) }
-                .disabled(!r.isEligible || coordinator.isBenchmarking)
+                .disabled(coordinator.settings.readinessProblem(r.option) != nil || coordinator.isBenchmarking)
         }
     }
 }

@@ -23,6 +23,7 @@ private struct GeneralSettings: View {
     @Environment(MiningCoordinator.self) private var coordinator
     @Environment(UpdateService.self) private var updates
     @Environment(UIState.self) private var uiState
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         @Bindable var store = coordinator.store
@@ -74,7 +75,9 @@ private struct GeneralSettings: View {
                     Button("Run again…") {
                         uiState.setupStep = 0
                         uiState.showSetup = true
-                        NSApp.activate(ignoringOtherApps: true)
+                        // The assistant is a sheet on the main window: bring that window up (it may be closed).
+                        openWindow(id: "dashboard")
+                        NSApp.activate()
                     }
                 }
             }

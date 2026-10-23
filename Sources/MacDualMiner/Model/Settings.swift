@@ -175,7 +175,11 @@ struct MinerSettings: Codable, Equatable {
     /// The first-run setup assistant was finished or closed.
     var setupCompleted = false
 
+    /// At least one coin is fully set up (pool + somewhere to be paid), so mining or a benchmark can start.
+    var canMineSomething: Bool { MiningOption.all.contains { readinessProblem($0) == nil } }
+
     /// Somewhere to be paid is set: a wallet, a Kryptex username or an unMineable address.
+    /// (Only for the first-run check – it doesn't mean any coin is ready; see canMineSomething.)
     var hasPayoutDestination: Bool {
         let filled = { (s: String) in !s.trimmingCharacters(in: .whitespaces).isEmpty }
         return wallets.values.contains(where: filled) || filled(xmrWallet) || filled(rvnWallet)

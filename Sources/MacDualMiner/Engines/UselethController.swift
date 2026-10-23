@@ -78,8 +78,12 @@ final class UselethController: MiningEngine {
         // UselethMiner never logs the pool's verdict – only "[SUBMIT] epoch:… hash:… nonce:…" when it sends a
         // share – so its share count is shares submitted. Its own submit errors count as rejected.
         if line.contains("[SUBMIT] epoch:") { acceptedShares += 1 }
-        else if line.contains("[SUBMIT] DIFFICULTY ERROR") || line.contains("[SUBMIT] JOB NOT FOUND")
-                    || line.contains("does not exist") || line.contains("does not match job") { rejectedShares += 1 }
+        else if line.contains("[SUBMIT]") && (line.contains("DIFFICULTY ERROR") || line.contains("JOB NOT FOUND")
+                    || line.contains("does not exist") || line.contains("does not match job")) {
+            // A failed submit was already counted when it was sent – move it from submitted to rejected.
+            rejectedShares += 1
+            if acceptedShares > 0 { acceptedShares -= 1 }
+        }
         else if line.contains("Loading DAG") { phase = "Loading DAG…" }
         else if line.contains("Loaded DAG") { phase = "DAG loaded – starting threads" }
         else if line.contains("[SUBSCRIBE]") || line.contains("Connected") { phase = "Connected to pool" }

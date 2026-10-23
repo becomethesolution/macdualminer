@@ -500,7 +500,10 @@ private struct PoolBalancePanel: View {
         let shown = service.balances.filter { $0.amount > 0 }
         Panel(title: "Pool balance", systemImage: "tray.and.arrow.down.fill") {
             if shown.isEmpty {
-                Text(service.lastUpdated == nil ? "Checking the pools…" : "Nothing waiting at the pools yet. Balances appear here once a pool credits your mining.")
+                Text(!service.hasTargets
+                     ? "No payout address to look up yet. (Balances paid to a Kryptex username can't be read here – check them on kryptex.com.)"
+                     : service.lastUpdated == nil ? "Checking the pools…"
+                     : "Nothing waiting at the pools yet. Balances appear here once a pool credits your mining.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             ForEach(shown) { b in
@@ -528,7 +531,9 @@ private struct PoolBalancePanel: View {
             }
         }
         .task(id: payoutSignature) {
-            // Re-read every 10 minutes, and right away when a payout address or pool changes.
+            // Re-read every 10 minutes, and when a payout address or pool changes (after a short pause,
+            // so typing an address doesn't fire a request per keystroke).
+            try? await Task.sleep(for: .seconds(1))
             while !Task.isCancelled {
                 await service.refresh(settings: coordinator.settings)
                 try? await Task.sleep(for: .seconds(600))
@@ -541,8 +546,9 @@ private struct PoolBalancePanel: View {
     }
 
     private func usdValue(_ b: PoolBalance) -> Double? {
-        guard let btc = coordinator.profit.btcUSD,
-              let rate = coordinator.profit.markets.values.first(where: { $0.tag == b.coinTag })?.exchangeRateBTC else { return nil }
+        guard let btc = coordinator.profit.btcUSD else { return nil }
+        if b.coinTag == "BTC" { return b.amount * btc }
+        guard let rate = coordinator.profit.markets.values.first(where: { $0.tag == b.coinTag })?.exchangeRateBTC else { return nil }
         return b.amount * rate * btc
     }
 }

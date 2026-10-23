@@ -48,7 +48,8 @@ final class MiningCoordinator {
     var settings: MinerSettings { store.settings }
     var engines: [any MiningEngine] { [xmrig, kawpow, ethminer, useleth] }
     var isMining: Bool { engines.contains { $0.isMining } }
-    var isBenchmarking: Bool { benchmarkTask != nil }
+    /// benchmarkProgress is observed, so views re-render when a benchmark starts or ends.
+    var isBenchmarking: Bool { benchmarkTask != nil || benchmarkProgress != nil }
 
     func engine(_ kind: EngineKind) -> any MiningEngine {
         switch kind {
@@ -521,9 +522,12 @@ final class MiningCoordinator {
             }
         }
         guard !queue.isEmpty else {
-            benchmarkStatus = settings.benchmarkExcluded.isEmpty
-                ? "Nothing to benchmark – add a wallet or Kryptex account for at least one coin"
-                : "Nothing to benchmark – every engine with a ready coin is switched off in the benchmark menu"
+            let anyReady = benchmarkablePairs.contains { pair in
+                rankedNow.contains { $0.option.engineAlgo == pair && settings.readinessProblem($0.option) == nil }
+            }
+            benchmarkStatus = anyReady
+                ? "Nothing to benchmark – every engine with a ready coin is switched off in the benchmark menu"
+                : "Nothing to benchmark – add a wallet or Kryptex account for at least one coin"
             return
         }
         startBenchmark(queue)

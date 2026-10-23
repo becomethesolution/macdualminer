@@ -29,7 +29,8 @@ final class PoolBalanceService {
     private(set) var balances: [PoolBalance] = []
     private(set) var lastUpdated: Date?
     private(set) var problem: String?
-    @ObservationIgnored private var isRefreshing = false
+    /// False when no configured payout can be looked up (none set, or only a Kryptex username).
+    private(set) var hasTargets = true
 
     /// The pool accounts the current settings mine to. Coins paid to a Kryptex *username* (not an address)
     /// are left out – Kryptex's public API looks balances up by address.
@@ -94,14 +95,15 @@ final class PoolBalanceService {
         }
     }
 
+    /// Called from one `.task(id:)` loop at a time; a cancelled call (address edited, Dashboard closed)
+    /// leaves the previous numbers alone instead of reporting the cancelled requests as failures.
     func refresh(settings: MinerSettings) async {
-        guard !isRefreshing else { return }
-        isRefreshing = true
-        defer { isRefreshing = false }
         let targets = Self.targets(for: settings)
+        hasTargets = !targets.isEmpty
         guard !targets.isEmpty else {
             balances = []
             problem = nil
+            lastUpdated = Date()
             return
         }
         var found: [PoolBalance] = []
@@ -125,6 +127,7 @@ final class PoolBalanceService {
                 if !result.reached { failures.append(result.target.coinTag) }
             }
         }
+        guard !Task.isCancelled else { return }
         balances = found.sorted { ($0.pool, $0.coinTag) < ($1.pool, $1.coinTag) }
         problem = failures.isEmpty ? nil : "Couldn't read the pool balance for \(failures.sorted().joined(separator: ", "))"
         lastUpdated = Date()
