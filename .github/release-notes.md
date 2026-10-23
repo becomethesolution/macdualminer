@@ -1,6 +1,12 @@
 MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Macs (M1–M5). It mines on the CPU and GPU, ranks coins by profit after electricity and switches automatically. [Full guide with screenshots](https://cryptominingonmacs.com/viewtopic.php?t=170).
 
-## What's new in 0.4.4
+## What's new in 0.4.5
+
+- **Clear answer when nothing is profitable.** In auto mode, if every coin would cost more in electricity than it earns, pressing Start now explains why nothing is mining instead of sitting there silently. It shows the least costly option and offers **Keep Waiting** (starts by itself when a coin turns profitable), **Mine … Anyway** (until you press Stop) or **Add a Wallet…** when a profitable coin only needs a wallet. The device rows now say "Waiting – nothing profitable at $x/kWh".
+- **Chip and battery temperature** under Power & Thermals on the Dashboard, in °F or °C (Settings › General › Units; defaults to your region).
+- **Mining at your own risk.** A short notice is shown once before you first start mining: MacDualMiner comes without warranty, and sustained mining adds heat and wear, especially to laptop batteries. The same note is in the About box, with tips in Settings › Rules.
+
+## Also in 0.4.4
 
 - **Help › Send Feedback…** opens a new GitHub issue with your MacDualMiner version, Mac model, chip and macOS version already filled in. You just describe the problem; nothing is sent until you submit it on GitHub, and your Mac's name isn't included.
 - **Help › Share Your Hashrate…** does the same for hashrate reports, which help improve the reference numbers for each chip.

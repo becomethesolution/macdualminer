@@ -30,6 +30,9 @@ final class MiningCoordinator {
     private(set) var switchLog: [String] = []
     private(set) var benchmarkStatus: String?
     private(set) var benchmarkProgress: Double?
+    /// "Mine Anyway": an option the user chose to run even though it loses money. Cleared on Stop, or as
+    /// soon as a profitable coin is available for the same part of the chip.
+    private(set) var acceptedLossOption: MiningOption?
 
     @ObservationIgnored private var loop: Task<Void, Never>?
     @ObservationIgnored private var benchmarkTask: Task<Void, Never>?
@@ -72,7 +75,37 @@ final class MiningCoordinator {
     }
 
     func start() { wantsMining = true; evaluate() }
-    func stop() { wantsMining = false; evaluate() }
+    func stop() { wantsMining = false; acceptedLossOption = nil; evaluate() }
+
+    /// Mine an option that loses money (auto mode would otherwise keep its part of the chip paused).
+    func mineAnyway(_ option: MiningOption) {
+        acceptedLossOption = option
+        let net = ranked.first { $0.option == option }?.netUSDPerDay ?? 0
+        log("Mining \(option.coinTag) on the \(option.engine.deviceLabel) anyway – about \(Format.usd(net))/day after electricity")
+        wantsMining = true
+        evaluate()
+    }
+
+    /// Why pressing Start in auto mode mined nothing: every ready coin loses money.
+    struct NothingProfitable {
+        var leastCostly: RankedOption
+        /// A coin that would make money but needs a wallet or pool first.
+        var needsSetup: RankedOption?
+    }
+
+    var nothingProfitable: NothingProfitable? {
+        let s = settings
+        guard wantsMining, s.switchingMode == .auto, s.pauseUnprofitable, acceptedLossOption == nil,
+              activePlan.options.isEmpty, !profit.markets.isEmpty, profit.btcUSD != nil else { return nil }
+        let rows = ranked
+        let ready = rows.filter { $0.isEligible && $0.devices.allSatisfy { d in d == .cpu ? s.cpuEnabled : s.gpuEnabled } }
+        guard let least = ready.max(by: { $0.netUSDPerDay < $1.netUSDPerDay }), least.netUSDPerDay <= 0 else { return nil }
+        let setup = rows.filter { row in
+            if case .needsSetup = row.status { return row.netUSDPerDay > 0 }
+            return false
+        }.max { $0.netUSDPerDay < $1.netUSDPerDay }
+        return NothingProfitable(leastCostly: least, needsSetup: setup)
+    }
     func toggle() { wantsMining ? stop() : start() }
 
     func shutdown() {
@@ -231,6 +264,19 @@ final class MiningCoordinator {
             let skipLosses = s.pauseUnprofitable
             let best = ProfitPlanner.bestPlan(rankedNow, skipUnprofitable: skipLosses)
             unprofitableDevices = skipLosses ? ProfitPlanner.losingDevices(rankedNow) : []
+            if let forced = acceptedLossOption {
+                let stillReady = rankedNow.first(where: { $0.option == forced })?.isEligible ?? false
+                let profitableThere = best.options.contains { !$0.engine.devices.isDisjoint(with: forced.engine.devices) }
+                if stillReady && !profitableThere {
+                    var options = best.options.filter { $0.engine.devices.isDisjoint(with: forced.engine.devices) }
+                    options.append(forced)
+                    unprofitableDevices.subtract(forced.engine.devices)
+                    recommendedPlan = nil
+                    return MiningPlan(options: options, netUSDPerDay: ProfitPlanner.value(of: options, in: rankedNow))
+                }
+                if profitableThere { log("A profitable coin is available again – back to normal auto-switching") }
+                acceptedLossOption = nil
+            }
             // A running coin that now loses money is dropped straight away – no margin or minimum run time.
             let currentEligible = !activePlan.options.isEmpty && activePlan.options.allSatisfy { o in
                 guard let row = rankedNow.first(where: { $0.option == o }), row.isEligible else { return false }
@@ -299,7 +345,7 @@ final class MiningCoordinator {
             }
             if activePlan.option(on: device) == nil {
                 reasons[device] = unprofitableDevices.contains(device) && s.switchingMode == .auto
-                    ? "Paused – every coin loses money on the \(device.label) at \(Format.usd(s.electricityUSDPerKWh))/kWh"
+                    ? "Waiting – nothing profitable at \(Format.usd(s.electricityUSDPerKWh))/kWh"
                     : "No coin ready for the \(device.label)"
                 continue
             }

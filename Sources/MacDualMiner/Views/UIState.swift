@@ -18,4 +18,9 @@ final class UIState {
     var chartHours: Double = 6
     var chartSelection: Date?
     var updateDismissed = false
+    var settingsTab: SettingsTab = .general
+}
+
+enum SettingsTab: Hashable {
+    case general, coins, switching, engines, rules, earnings
 }

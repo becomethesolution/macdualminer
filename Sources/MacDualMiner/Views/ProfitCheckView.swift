@@ -187,7 +187,7 @@ private struct ProfitRow: View {
                 if running {
                     Text("Mining").font(.caption.weight(.semibold)).foregroundStyle(Theme.profit)
                 } else {
-                    Button("Mine") { coordinator.mine(r.option) }
+                    Button("Mine") { StartFlow.mine(r.option, coordinator: coordinator) }
                         .disabled(!r.isEligible)
                 }
             }

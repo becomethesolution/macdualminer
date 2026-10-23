@@ -14,8 +14,14 @@ final class SystemMonitor {
     private(set) var onBattery = false
     private(set) var thermalState: ProcessInfo.ThermalState = .nominal
     private(set) var idleSeconds: Double = 0
+    /// Hottest chip sensor in °C, nil if this Mac's sensors can't be read.
+    private(set) var chipTemperatureC: Double?
+    /// Battery temperature in °C (laptops).
+    private(set) var batteryTemperatureC: Double?
+    private(set) var chipSensorCount = 0
 
     @ObservationIgnored private let smc = SMCReader()
+    @ObservationIgnored private let temperatures = TemperatureSensors()
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private var notMiningSince: Date? = Date()
 
@@ -45,6 +51,11 @@ final class SystemMonitor {
         thermalState = ProcessInfo.processInfo.thermalState
         onBattery = Self.isOnBatteryPower()
         idleSeconds = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
+        if let reading = temperatures?.read() {
+            chipTemperatureC = reading.chipC.map { new in chipTemperatureC.map { $0 * 0.5 + new * 0.5 } ?? new }
+            batteryTemperatureC = reading.batteryC
+            chipSensorCount = reading.chipSensorCount
+        }
 
         if let raw = smc?.readFloat("PSTR"), raw > 0, raw < 1000 {
             systemWatts = systemWatts.map { $0 * 0.7 + raw * 0.3 } ?? raw

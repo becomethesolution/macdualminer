@@ -101,10 +101,12 @@ private struct Sidebar: View {
 
 struct StartStopButton: View {
     @Environment(MiningCoordinator.self) private var coordinator
+    @Environment(UIState.self) private var uiState
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         Button {
-            coordinator.toggle()
+            StartFlow.toggle(coordinator, ui: uiState, openSettings: { openSettings() })
         } label: {
             Label(coordinator.wantsMining ? "Stop Mining" : "Start Mining",
                   systemImage: coordinator.wantsMining ? "stop.fill" : "play.fill")

@@ -2,14 +2,17 @@ import SwiftUI
 import ServiceManagement
 
 struct SettingsView: View {
+    @Environment(UIState.self) private var uiState
+
     var body: some View {
-        TabView {
-            GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
-            CoinsSettings().tabItem { Label("Coins & Wallets", systemImage: "bitcoinsign.circle") }
-            SwitchingSettings().tabItem { Label("Switching", systemImage: "arrow.triangle.2.circlepath") }
-            EngineSettings().tabItem { Label("Engines", systemImage: "cpu") }
-            RulesSettings().tabItem { Label("Rules", systemImage: "slider.horizontal.3") }
-            EarningsSettings().tabItem { Label("Earnings", systemImage: "dollarsign.circle") }
+        @Bindable var ui = uiState
+        TabView(selection: $ui.settingsTab) {
+            GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }.tag(SettingsTab.general)
+            CoinsSettings().tabItem { Label("Coins & Wallets", systemImage: "bitcoinsign.circle") }.tag(SettingsTab.coins)
+            SwitchingSettings().tabItem { Label("Switching", systemImage: "arrow.triangle.2.circlepath") }.tag(SettingsTab.switching)
+            EngineSettings().tabItem { Label("Engines", systemImage: "cpu") }.tag(SettingsTab.engines)
+            RulesSettings().tabItem { Label("Rules", systemImage: "slider.horizontal.3") }.tag(SettingsTab.rules)
+            EarningsSettings().tabItem { Label("Earnings", systemImage: "dollarsign.circle") }.tag(SettingsTab.earnings)
         }
         .padding(8)
     }
@@ -25,6 +28,12 @@ private struct GeneralSettings: View {
             Section("Appearance") {
                 Picker("Appearance", selection: $store.settings.appearance) {
                     ForEach(AppearanceMode.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
+            }
+            Section("Units") {
+                Picker("Temperature", selection: $store.settings.temperatureUnit) {
+                    ForEach(TemperatureUnit.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
             }
@@ -313,6 +322,8 @@ private struct RulesSettings: View {
                             value: $store.settings.idleMinutes, in: 1...120)
                 }
                 Toggle("Keep the Mac awake while mining", isOn: $store.settings.preventSleep)
+                Text("Mining keeps the chip hot and the fans busy, which adds wear over time, especially to a laptop battery. Pausing on battery and under thermal pressure, and a lower power level in Settings › Engines, reduce it. You can watch the chip temperature on the Dashboard.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("Startup") {
                 Toggle("Start mining when the app opens", isOn: $store.settings.startMiningOnLaunch)

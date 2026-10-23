@@ -91,6 +91,9 @@ struct MinerSettings: Codable, Equatable {
     // MARK: App
     var checkForUpdates = true
     var appearance: AppearanceMode = .dark
+    var temperatureUnit: TemperatureUnit = .localeDefault
+    /// Version of the "mining at your own risk" notice the user has accepted (0 = never shown).
+    var acceptedDisclaimerVersion = 0
     /// 0.3.x setting, read once to choose `appearance` for existing users (false meant "follow macOS").
     var darkInterface = true
 

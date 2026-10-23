@@ -127,11 +127,13 @@ private struct HeroPanel: View {
 /// Large round Start/Stop control.
 private struct BigStartButton: View {
     @Environment(MiningCoordinator.self) private var coordinator
+    @Environment(UIState.self) private var uiState
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         let on = coordinator.wantsMining
         Button {
-            coordinator.toggle()
+            StartFlow.toggle(coordinator, ui: uiState, openSettings: { openSettings() })
         } label: {
             ZStack {
                 Circle()
@@ -342,6 +344,14 @@ private struct PowerThermalPanel: View {
         Panel(title: "Power & Thermals", systemImage: "bolt.fill") {
             StatRow(label: "Mac power now", value: sys.systemWatts == nil ? "Sensor unavailable" : Format.watts(sys.systemWatts))
             StatRow(label: "Idle baseline", value: sys.idleBaselineWatts == nil ? "Learning…" : Format.watts(sys.idleBaselineWatts))
+            let unit = coordinator.settings.temperatureUnit
+            StatRow(label: "Chip temperature", value: sys.chipTemperatureC == nil ? "Sensor unavailable" : unit.format(sys.chipTemperatureC))
+                .foregroundStyle((sys.chipTemperatureC ?? 0) >= 95 ? Theme.accent : Color.primary)
+                .help("Hottest of \(sys.chipSensorCount) chip temperature sensors. Apple Silicon slows itself down if it gets too hot.")
+            if sys.batteryTemperatureC != nil {
+                StatRow(label: "Battery temperature", value: unit.format(sys.batteryTemperatureC))
+                    .help("Heat ages a laptop battery faster. Keeping the battery cooler helps it last.")
+            }
             StatRow(label: "Thermal pressure", value: sys.thermalLabel)
             StatRow(label: "Power source", value: sys.onBattery ? "Battery" : "AC power")
             StatRow(label: "Idle for", value: Duration.seconds(sys.idleSeconds).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .abbreviated)))
