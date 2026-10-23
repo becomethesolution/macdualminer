@@ -120,7 +120,8 @@ enum Format {
     }
 
     static func usd(_ value: Double?) -> String {
-        guard let value, value.isFinite else { return "—" }
+        guard var value, value.isFinite else { return "—" }
+        if abs(value) < 0.00005 { value = 0 }   // no "−$0.0000"
         let magnitude = abs(value)
         let digits = magnitude >= 100 ? 2 : magnitude >= 1 ? 2 : magnitude >= 0.01 ? 3 : 4
         let formatter = NumberFormatter()

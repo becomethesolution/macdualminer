@@ -2,7 +2,16 @@ MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Mac
 
 ## What's new in 0.4.7
 
-- A stopped CPU or GPU now shows the coin it would mine in its menu, instead of "Choose a coin".
+- **Fixes from a full review of the 0.4.x changes:**
+  - The activity log no longer repeats "Paused – every ready coin loses money" every few seconds when no coin is set up yet; it now says once that no coin is ready and to add a wallet or pool.
+  - Starting just the CPU or GPU always gives it a coin right away, even when UselethMiner (CPU + GPU) looks best overall. Starting either side of a UselethMiner pick starts both.
+  - A coin you pick yourself keeps mining when its market data is briefly stale or its trading volume dips; only a missing wallet, pool or engine stops it.
+  - In manual mode, picking a CPU-only or GPU-only coin after UselethMiner now takes effect.
+  - Starting or stopping one chip no longer restarts the other chip's minimum run time, and Start/Stop pressed during a benchmark is kept.
+  - The menu bar no longer shows warnings for a chip you didn't start.
+- **Clearer Dashboard:** a stopped chip shows the coin it would mine; the coin menu shows its algorithm, engine and Auto / your pick underneath; the loss note doesn't promise auto-switching for a coin you picked.
+- **Small fixes:** no more "−$0.0000"; the Logs tab says how to get output; the About box links to GitHub; people upgrading from 0.4.4 or earlier get a one-time note in the activity log that Start now always mines.
+
 
 ## Also in 0.4.6
 
@@ -49,7 +58,7 @@ MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Mac
 4. Open **Settings (⌘,)**:
    - Under **Coins & Wallets**, add a wallet for each coin you want to mine, or a Kryptex username.
    - Under **Earnings**, set your electricity price per kWh.
-5. On the **Profit Check** tab, click **Benchmark this Mac**, then press **Start Mining**.
+5. On the **Profit Check** tab, click **Benchmark this Mac**, then press **Start All Miners**.
 
 **Requirements:** an Apple Silicon Mac (any M1–M5; not Intel) running macOS 15 Sequoia or later, with about 3 GB of free memory for CPU mining and 5–8 GB for GPU mining. Tuned for the M5 Max. For which engines have been tested on which chips, see the [compatibility table](https://github.com/becomethesolution/macdualminer#compatibility).
 

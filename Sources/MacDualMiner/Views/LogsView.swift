@@ -27,6 +27,11 @@ struct LogsView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 1) {
+                        if process.log.isEmpty {
+                            Text("No output from \(uiState.logsEngine.displayName) yet. Start mining and its output appears here.")
+                                .font(.callout).foregroundStyle(.secondary)
+                                .padding(.vertical, 6)
+                        }
                         ForEach(Array(process.log.enumerated()), id: \.offset) { index, line in
                             Text(line)
                                 .font(.system(.caption, design: .monospaced))

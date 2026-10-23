@@ -173,52 +173,58 @@ private struct CoinMenu: View {
         let pinned = auto ? s.pinnedOption(for: device) : nil
         let rows = coordinator.ranked
             .filter { $0.devices.contains(device) }
-            .sorted { ($0.isEligible ? 1 : 0, $0.netUSDPerDay) > ($1.isEligible ? 1 : 0, $1.netUSDPerDay) }
-        Menu {
-            if auto {
-                Button {
-                    coordinator.choose(nil, for: [device])
-                } label: {
-                    Label("Auto – best coin", systemImage: pinned == nil ? "checkmark" : "wand.and.stars")
+            .sorted { a, b in
+                if a.isEligible != b.isEligible { return a.isEligible }
+                return a.netUSDPerDay > b.netUSDPerDay
+            }
+        VStack(alignment: .leading, spacing: 3) {
+            Menu {
+                if auto {
+                    Button {
+                        coordinator.choose(nil, for: [device])
+                    } label: {
+                        Label("Auto – best coin", systemImage: pinned == nil ? "checkmark" : "wand.and.stars")
+                    }
+                    Divider()
+                }
+                ForEach(rows) { row in
+                    Button {
+                        coordinator.choose(row.option, for: row.devices)
+                    } label: {
+                        let selected = auto ? pinned == row.option : current == row.option
+                        Label(title(for: row), systemImage: selected ? "checkmark" : (row.isEligible ? "circle" : "exclamationmark.circle"))
+                    }
+                    .disabled(!row.canMine)
                 }
                 Divider()
-            }
-            ForEach(rows) { row in
-                Button {
-                    coordinator.choose(row.option, for: row.devices)
-                } label: {
-                    let selected = auto ? pinned == row.option : current == row.option
-                    Label(title(for: row), systemImage: selected ? "checkmark" : (row.isEligible ? "circle" : "exclamationmark.circle"))
+                Button("Add a wallet or pool…") {
+                    uiState.settingsTab = .coins
+                    openSettings()
                 }
-                .disabled(!row.isEligible)
-            }
-            Divider()
-            Button("Add a wallet or pool…") {
-                uiState.settingsTab = .coins
-                openSettings()
-            }
-        } label: {
-            VStack(alignment: .leading, spacing: 3) {
+            } label: {
                 HStack(spacing: 4) {
-                    Text(current.map { "\($0.coin?.name ?? $0.coinTag) (\($0.coinTag))" } ?? "Choose a coin")
-                        .font(.callout.weight(.semibold)).lineLimit(1)
-                    Image(systemName: "chevron.up.chevron.down").font(.caption2).foregroundStyle(.secondary)
+                    Text(current.map { "\($0.coin?.name ?? $0.coinTag) (\($0.coinTag))" } ?? "No coin ready")
+                        .font(.callout.weight(.semibold))
+                        .lineLimit(1).truncationMode(.tail)
+                    Image(systemName: "chevron.up.chevron.down").font(.caption2)
                 }
-                Text(subtitle(current: current, auto: auto, pinned: pinned))
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
-            .contentShape(Rectangle())
+            .menuStyle(.button)
+            .buttonStyle(.borderless)
+            .menuIndicator(.hidden)
+            .tint(Theme.accent)
+            .help("Choose the coin for the \(device.label), or Auto to let MacDualMiner pick the best one")
+            Text(subtitle(current: current, auto: auto, pinned: pinned))
+                .font(.caption).foregroundStyle(.secondary)
+                .lineLimit(1).truncationMode(.tail)
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .help("Choose the coin for the \(device.label), or Auto to let MacDualMiner pick the best one")
     }
 
     private func title(for row: RankedOption) -> String {
         var t = "\(row.coinName) (\(row.option.coinTag)) · \(row.option.engine.displayName)"
         if row.devices.count == 2 { t += " · uses CPU + GPU" }
-        t += row.isEligible ? " · \(Format.usd(row.netUSDPerDay))/day" : " · \(row.status.label)"
+        t += row.isEligible || row.canMine ? " · \(Format.usd(row.netUSDPerDay))/day" : " · \(row.status.label)"
+        if !row.isEligible && row.canMine { t += " · \(row.status.label)" }
         return t
     }
 
@@ -307,12 +313,13 @@ private struct DeviceRow: View {
                 Image(systemName: "info.circle")
                 VStack(alignment: .leading, spacing: 3) {
                     Text("As of current calculations, \(row.coinName) on the \(device.label) won't be profitable at \(Format.usd(s.electricityUSDPerKWh))/kWh – about \(Format.usd(row.netUSDPerDay))/day after electricity."
-                         + (s.switchingMode == .auto ? " MacDualMiner switches to a profitable coin automatically if one appears." : ""))
+                         + (s.switchingMode == .auto && s.pinnedOption(for: device) == nil
+                            ? " MacDualMiner switches to a profitable coin automatically if one appears." : ""))
                         .fixedSize(horizontal: false, vertical: true)
                     if let better {
                         HStack(spacing: 6) {
-                            Text("\(better.coinName) would earn about \(Format.usd(better.netUSDPerDay))/day – \(better.status.label.lowercased()).")
-                            Button("Add a wallet") {
+                            Text("\(better.coinName) would earn about \(Format.usd(better.netUSDPerDay))/day (\(better.status.label)).")
+                            Button("Set it up in Coins & Wallets") {
                                 uiState.settingsTab = .coins
                                 openSettings()
                             }
@@ -464,7 +471,7 @@ private struct PowerThermalPanel: View {
             let unit = coordinator.settings.temperatureUnit
             StatRow(label: "Chip temperature", value: sys.chipTemperatureC == nil ? "Sensor unavailable" : unit.format(sys.chipTemperatureC))
                 .foregroundStyle((sys.chipTemperatureC ?? 0) >= 95 ? Theme.accent : Color.primary)
-                .help("Hottest of \(sys.chipSensorCount) chip temperature sensors. Apple Silicon slows itself down if it gets too hot.")
+                .help("Hottest of the Mac's \(sys.chipSensorCount) chip temperature readings. Apple Silicon slows itself down if it gets too hot.")
             if sys.batteryTemperatureC != nil {
                 StatRow(label: "Battery temperature", value: unit.format(sys.batteryTemperatureC))
                     .help("Heat ages a laptop battery faster. Keeping the battery cooler helps it last.")

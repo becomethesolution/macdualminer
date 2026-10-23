@@ -126,7 +126,10 @@ enum AboutPanel {
         var link = base
         link[.link] = CommunityLinks.tagged("https://cryptominingonmacs.com/", content: "about")
         credits.append(NSAttributedString(string: CommunityLinks.siteName, attributes: link))
-        credits.append(NSAttributedString(string: "\nSource code: github.com/becomethesolution/macdualminer", attributes: base))
+        credits.append(NSAttributedString(string: "\nSource code: ", attributes: base))
+        var github = base
+        github[.link] = URL(string: "https://github.com/becomethesolution/macdualminer")!
+        credits.append(NSAttributedString(string: "GitHub", attributes: github))
         credits.append(NSAttributedString(string: "\n\n" + Disclaimer.short, attributes: base))
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])

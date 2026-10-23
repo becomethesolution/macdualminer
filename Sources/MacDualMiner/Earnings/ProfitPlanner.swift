@@ -158,6 +158,13 @@ struct RankedOption: Identifiable, Equatable {
     var netUSDPerDay: Double { grossUSDPerDay - powerUSDPerDay }
     var devices: Set<Device> { option.engine.devices }
     var isEligible: Bool { status == .ready }
+    /// Can run if the user insists (a picked coin): only a missing wallet/pool or engine stops it.
+    var canMine: Bool {
+        switch status {
+        case .needsSetup, .engineDisabled, .engineMissing: return false
+        default: return true
+        }
+    }
 }
 
 /// Which engines/coins run together. Either one CPU option + one GPU option, or one CPU+GPU option.

@@ -13,7 +13,7 @@ body:
     attributes:
       label: What happened?
       description: What did you do, what did you expect, and what happened instead?
-      placeholder: "I pressed Start Mining with Monero selected, and the CPU row stayed on \"Starting…\" for 10 minutes."
+      placeholder: "I pressed Start All Miners with Monero selected, and the CPU row stayed on \"Starting…\" for 10 minutes."
     validations:
       required: true
   - type: textarea

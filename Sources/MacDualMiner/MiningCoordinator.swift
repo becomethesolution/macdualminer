@@ -71,17 +71,32 @@ final class MiningCoordinator {
                 try? await Task.sleep(for: .seconds(3))
             }
         }
+        // One-time note for people upgrading from 0.4.4 or earlier, where losing devices sat idle by default.
+        if !store.settings.shownNotices.contains("start-always-mines") {
+            if FileManager.default.fileExists(atPath: AppPaths.benchmarksFile.path) {
+                log("New in 0.4.5: Start always mines, using the least costly coin when nothing is profitable. To keep a device idle instead, turn on Settings › Switching › Keep a started device idle.")
+            }
+            store.settings.shownNotices.append("start-always-mines")
+        }
         if store.settings.startMiningOnLaunch { start() }
     }
 
     /// Start All Miners.
-    func start() { wantedDevices = Set(Device.allCases); evaluate() }
+    func start() { wantedDevices = Set(Device.allCases); lastSwitchCheck = nil; evaluate() }
     /// Stop All Miners.
     func stop() { wantedDevices = []; evaluate() }
     func toggle() { wantsMining ? stop() : start() }
 
     /// Start or stop one part of the chip.
-    func start(_ device: Device) { wantedDevices.insert(device); lastSwitchCheck = nil; evaluate() }
+    func start(_ device: Device) {
+        wantedDevices.insert(device)
+        // UselethMiner uses both parts of the chip: starting either side starts both.
+        if let planned = activePlan.option(on: device) ?? previewOption(for: device), planned.engine.devices.count == 2 {
+            wantedDevices.formUnion(planned.engine.devices)
+        }
+        lastSwitchCheck = nil
+        evaluate()
+    }
     func stop(_ device: Device) { wantedDevices.remove(device); lastSwitchCheck = nil; evaluate() }
     func toggle(_ device: Device) { wants(device) ? stop(device) : start(device) }
 
@@ -135,6 +150,13 @@ final class MiningCoordinator {
         } else if let option {
             if option.engine.devices.contains(.cpu) { store.settings.manualCPUOption = option.id }
             if option.engine.devices.contains(.gpu) { store.settings.manualGPUOption = option.id }
+            // Leaving UselethMiner (CPU + GPU) for a one-device coin: give the other side its own default coin.
+            if option.engine.devices == [.cpu], MiningOption(id: settings.manualGPUOption)?.engine.devices.count == 2 {
+                store.settings.manualGPUOption = "kawpow:RVN"
+            }
+            if option.engine.devices == [.gpu], MiningOption(id: settings.manualCPUOption)?.engine.devices.count == 2 {
+                store.settings.manualCPUOption = "xmrig:XMR"
+            }
         }
         if let option { log("You picked \(option.label) for the \(option.engine.deviceLabel)") }
         else { log("\(devices.map(\.label).sorted().joined(separator: " + ")) back on Auto") }
@@ -144,7 +166,11 @@ final class MiningCoordinator {
 
     // MARK: - Profit check
 
-    var ranked: [RankedOption] {
+    /// Every option ranked, refreshed on each evaluation (every few seconds and after any Start/Stop or
+    /// coin pick) so views don't recompute it on every redraw.
+    private(set) var ranked: [RankedOption] = []
+
+    private var freshRanked: [RankedOption] {
         var markets: [String: CoinMarket] = [:]
         for coin in CoinCatalog.coins { if let m = profit.market(for: coin) { markets[coin.tag] = m } }
         var estimates: [EngineAlgo: HashrateEstimate] = [:]
@@ -197,10 +223,17 @@ final class MiningCoordinator {
 
     private func evaluate() {
         let s = settings
+        let latest = freshRanked
+        if latest != ranked { ranked = latest }
         updateBlockReasons()
         learnLivePower()
         let desired = desiredPlan()
-        if desired.options != activePlan.options { setActive(desired, reason: nil) }
+        if desired.options != activePlan.options {
+            // Adding a coin for a newly started part of the chip doesn't restart the minimum run time of the rest.
+            let extendsCurrent = !activePlan.options.isEmpty && Set(activePlan.options).isSubset(of: Set(desired.options))
+            activePlan = desired
+            if !extendsCurrent { planStartedAt = Date() }
+        }
 
         // Work out each engine's job, then stop before start (GPU engines can't share the GPU).
         var wanted: [EngineKind: MiningJob] = [:]
@@ -276,36 +309,56 @@ final class MiningCoordinator {
                 rankedNow = rankedNow.filter { $0.devices.isDisjoint(with: pinnedDevices) || pinned.contains($0.option) }
             }
             let skipLosses = s.idleWhenUnprofitable
-            var best = ProfitPlanner.bestPlan(rankedNow, skipUnprofitable: skipLosses)
-            // A picked coin runs even when it loses money – the user chose it.
-            for option in pinned where !best.options.contains(option)
-                && (rankedNow.first { $0.option == option }?.isEligible ?? false) {
-                best.options = best.options.filter { $0.engine.devices.isDisjoint(with: option.engine.devices) } + [option]
-                best.netUSDPerDay = ProfitPlanner.value(of: best.options, in: rankedNow)
+            /// Best plan for some rows, with picked coins added even when they lose money or their market data
+            /// is stale – the user chose them. Only a missing wallet/pool or engine keeps a pick from running.
+            func plan(_ rows: [RankedOption]) -> MiningPlan {
+                var result = ProfitPlanner.bestPlan(rows, skipUnprofitable: skipLosses)
+                for option in pinned where !result.options.contains(option)
+                    && (rows.first { $0.option == option }?.canMine ?? false) {
+                    result.options = result.options.filter { $0.engine.devices.isDisjoint(with: option.engine.devices) } + [option]
+                    result.netUSDPerDay = ProfitPlanner.value(of: result.options, in: rows)
+                }
+                return result
             }
+            let best = plan(rankedNow)
             unprofitableDevices = skipLosses ? ProfitPlanner.losingDevices(rankedNow) : []
-            // A running coin that now loses money is dropped straight away – no margin or minimum run time.
+
+            // Drop coins on parts of the chip that were stopped, without restarting the minimum run time of the rest.
+            let kept = activePlan.options.filter { $0.engine.devices.isSubset(of: planDevices) }
+            if kept != activePlan.options {
+                activePlan = MiningPlan(options: kept, netUSDPerDay: ProfitPlanner.value(of: kept, in: rankedNow))
+            }
+
+            // A running coin that now loses money (with "keep idle" on) or can't be mined is dropped straight away.
             let currentEligible = !activePlan.options.isEmpty && activePlan.options.allSatisfy { o in
-                guard let row = rankedNow.first(where: { $0.option == o }), row.isEligible else { return false }
-                return !skipLosses || row.netUSDPerDay > 0 || pinned.contains(o)
+                guard let row = rankedNow.first(where: { $0.option == o }) else { return false }
+                if pinned.contains(o) { return row.canMine }
+                return row.isEligible && (!skipLosses || row.netUSDPerDay > 0)
             }
             guard currentEligible else {
-                if best.options != activePlan.options {
-                    log(best.options.isEmpty ? "Paused – every ready coin loses money after electricity"
-                                             : (best.netUSDPerDay > 0 ? "Mining \(best.summary) – best profitable option"
-                                                                  : "Mining \(best.summary) – least costly option; nothing is profitable right now"))
-                }
                 recommendedPlan = nil
-                if best.options.isEmpty { return skipLosses ? .empty : manualPlan() }
-                return best
+                let anyReady = rankedNow.contains { $0.isEligible }
+                let next: MiningPlan = best.options.isEmpty ? (skipLosses && anyReady ? .empty : manualPlan()) : best
+                if next.options != activePlan.options {
+                    if best.options.isEmpty {
+                        log(anyReady ? "Idle – every ready coin loses money after electricity"
+                                     : "No coin ready to mine – add a wallet or pool in Settings › Coins & Wallets")
+                    } else {
+                        log(best.netUSDPerDay > 0 ? "Mining \(best.summary) – best profitable option"
+                                                  : "Mining \(best.summary) – least costly option; nothing is profitable right now")
+                    }
+                }
+                return next
             }
-            // A part of the chip that was just started gets its best coin right away, without waiting for the
-            // next switch check or the minimum run time of what's already mining.
+            // A part of the chip that was just started gets its own best coin right away, without waiting for
+            // the next switch check or the minimum run time of what's already mining.
             let uncovered = planDevices.filter { activePlan.option(on: $0) == nil }
-            let additions = best.options.filter { $0.engine.devices.isSubset(of: uncovered) }
-            if !additions.isEmpty {
-                let options = activePlan.options + additions
-                return MiningPlan(options: options, netUSDPerDay: ProfitPlanner.value(of: options, in: rankedNow))
+            if !uncovered.isEmpty {
+                let additions = plan(rankedNow.filter { $0.devices.isSubset(of: uncovered) }).options
+                if !additions.isEmpty {
+                    let options = activePlan.options + additions
+                    return MiningPlan(options: options, netUSDPerDay: ProfitPlanner.value(of: options, in: rankedNow))
+                }
             }
             let currentNet = ProfitPlanner.value(of: activePlan.options, in: rankedNow)
             let better = ProfitPlanner.shouldSwitch(currentNet: currentNet, bestNet: best.netUSDPerDay, marginPercent: s.switchMarginPercent)
@@ -458,7 +511,6 @@ final class MiningCoordinator {
             benchmarkStatus = "Nothing to benchmark – add a wallet or Kryptex account for at least one coin"
             return
         }
-        let resume = wantedDevices
         benchmarkTask = Task { [weak self] in
             guard let self else { return }
             for (index, option) in queue.enumerated() {
@@ -470,7 +522,6 @@ final class MiningCoordinator {
             self.benchmarkProgress = nil
             self.benchmarkStatus = Task.isCancelled ? "Benchmark cancelled" : "Benchmark finished – profit check updated"
             self.benchmarkTask = nil
-            self.wantedDevices = resume
             self.lastSwitchCheck = nil   // re-plan right away with the new numbers
             self.evaluate()
         }

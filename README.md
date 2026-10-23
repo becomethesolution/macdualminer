@@ -49,10 +49,10 @@ Measured on the M5 Max: XMRig does about 7.0–7.9 kH/s with the CPU alone (abou
 
 ## Features
 
-- **NiceHash-like interface:** a sidebar, a large Start/Stop button with live profitability, and one row per device (CPU and GPU) showing coin, algorithm, engine, hashrate, watts and shares, with an on/off switch and power slider for each. It also shows your Mac's own name, model and chip details, and comes in a Dark or Light look, or follows macOS (Settings › General).
+- **NiceHash-like interface:** a sidebar, a large Start All / Stop All button with live profitability, and one row per device (CPU and GPU) showing coin, algorithm, engine, hashrate, watts and shares, with a coin menu, a power slider and its own Start/Stop button. It also shows your Mac's own name, model and chip details, and comes in a Dark or Light look, or follows macOS (Settings › General).
 - **Power vs Earnings chart:** power draw against gross and net $/day over the last 1, 6 or 24 hours. A point is recorded every 30 seconds and the history is kept between launches; hover to read exact values.
 - **Temperatures:** chip and battery temperature under Power & Thermals, in °F or °C.
-- **Pick a coin per chip:** the coin under the CPU and GPU on the Dashboard is a menu: Auto (best coin) or any coin that chip can mine, with its net per day. Picking one pins just that chip.
+- **Pick a coin per chip:** the coin under the CPU and GPU on the Dashboard is a menu: Auto (best coin) or any coin that chip can mine, with its net per day. Picking one pins just that chip (UselethMiner uses both chips, so it pins both).
 - **Start All or one at a time:** Start All Miners, or start and stop the CPU and GPU separately from their rows on the Dashboard. Start always mines: when nothing is profitable at your electricity price, auto mode mines the least costly coin and a note under the device says so (or keep the device idle with a setting in Switching).
 - **Feedback from the app:** Help › Send Feedback… and Help › Share Your Hashrate… open a GitHub issue with the app version, Mac model, chip and macOS version already filled in (your Mac's name is left out).
 - **Help & community:** the Help menu, Settings › General and the sidebar link to the [MacDualMiner guide](https://cryptominingonmacs.com/viewtopic.php?t=170), the [CryptoMiningOnMacs.com](https://cryptominingonmacs.com/) community (the macOS crypto mining community) and GitHub Issues. Reference hashrates in Profit Check link to the tests they come from.
@@ -159,7 +159,7 @@ If the GitHub CLI (`gh`) is installed and signed in, the script publishes the re
 4. **Settings › Earnings**: set your electricity price per kWh from your bill.
 5. Optional: under **Settings › Engines**, click *Download & install* for UselethMiner.
 6. Open the **Profit Check** tab and click **Benchmark this Mac** so the ranking uses this Mac's real hashrates. Until then it uses the cryptominingonmacs.com result for your chip.
-7. Press **Start Mining**. In Auto mode the app runs the best plan and keeps re-checking.
+7. Press **Start All Miners** (or start the CPU or GPU on its own from its row). In Auto mode the app runs the best plan and keeps re-checking.
 
 What to expect on first start:
 

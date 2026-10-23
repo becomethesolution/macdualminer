@@ -19,7 +19,7 @@ struct MenuBarContent: View {
                 let running = coordinator.runningEngine(on: device)
                 let tag = running?.job?.option.coinTag ?? coordinator.activePlan.option(on: device)?.coinTag ?? "—"
                 StatRow(label: "\(device.label) · \(tag)", value: Format.hashrate(running?.hashrate(for: device)))
-                if let reason = coordinator.blockReasons[device], coordinator.wantsMining {
+                if let reason = coordinator.blockReasons[device], coordinator.wants(device) {
                     Text(reason).font(.caption).foregroundStyle(.orange)
                 }
             }
@@ -37,7 +37,7 @@ struct MenuBarContent: View {
             Divider()
             HStack {
                 StartStopButton()
-                    .fixedSize()   // keep "Start Mining" from truncating
+                    .fixedSize()   // keep "Start All Miners" from truncating
                 Spacer()
                 Button("Dashboard") {
                     openWindow(id: "dashboard")
