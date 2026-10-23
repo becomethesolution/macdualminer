@@ -262,7 +262,7 @@ private struct DeviceRow: View {
             }
             .frame(width: 260, alignment: .leading)
 
-            CoinMenu(device: device, current: option)
+            CoinMenu(device: device, current: option ?? coordinator.previewOption(for: device))
                 .frame(width: 170, alignment: .leading)
 
             VStack(alignment: .trailing, spacing: 3) {

@@ -111,6 +111,16 @@ final class MiningCoordinator {
         evaluate()
     }
 
+    /// The coin a stopped device would mine if started, for its menu label.
+    func previewOption(for device: Device) -> MiningOption? {
+        if settings.switchingMode != .auto {
+            return MiningOption(id: device == .cpu ? settings.manualCPUOption : settings.manualGPUOption)
+        }
+        if let pinned = settings.pinnedOption(for: device) { return pinned }
+        return ranked.filter { $0.isEligible && $0.devices == [device] }
+            .max { $0.netUSDPerDay < $1.netUSDPerDay }?.option
+    }
+
     /// The coin menu under each device: pick a coin (nil = Auto). In auto mode the choice pins that device
     /// while the other keeps auto-switching; in manual or recommend mode it sets the manual coin.
     func choose(_ option: MiningOption?, for devices: Set<Device>) {
