@@ -113,7 +113,7 @@ Measured on the M5 Max: XMRig does about 7.0–7.9 kH/s with the CPU alone (abou
 | XMRig – CPU (RandomX, GhostRider) | ✅ | ✅ | ✅ tested on M5 Max (9.0 kH/s) |
 | kawpow-metal – GPU (KawPow) | ✅ listed by its author | ⚠️ not tested yet | ✅ runs on M5 Max |
 | ethminer-m1 – GPU (Ethash) | ✅ | ✅ | ✅ tested on M5 Max (41.6 MH/s) |
-| UselethMiner – CPU + GPU (Ethash) | ✅ tested up to M4 Max | ⚠️ not tested yet | ⚠️ not tested yet |
+| UselethMiner – CPU + GPU (Ethash) | ✅ tested up to M4 Max | ⚠️ not tested yet | ✅ tested on M5 Max (~13–18 MH/s CPU + ~34 MH/s GPU) |
 | Starting hashrates without a benchmark | M1 Ultra, M2, M2 Max, M3 Max, M3 Ultra, M4, M4 Max | – | M5 Max |
 
 **What's tuned for M5:**
