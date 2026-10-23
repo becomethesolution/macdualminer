@@ -207,17 +207,34 @@ private struct PayoutSettings: View {
             }
             Section("Get paid in another coin (unMineable)") {
                 Toggle("Mine Monero through unMineable", isOn: viaUnmineable)
-                Picker("Pay me in", selection: $store.settings.unmineablePayoutCoin) {
-                    ForEach(UnmineablePayout.coins, id: \.tag) { Text("\($0.name) (\($0.tag))").tag($0.tag) }
-                }
-                TextField("Payout address", text: $store.settings.unmineableAddress,
-                          prompt: Text("Your \(store.settings.unmineablePayoutCoin) address, e.g. from Trust Wallet"))
-                    .textFieldStyle(.roundedBorder)
+                UnmineablePayoutFields()
                 Text("Your Mac still mines Monero on the CPU; unMineable converts it and pays the coin you pick to this address once your balance passes its minimum for that coin. No Monero wallet needed. Earnings are the same as mining Monero, less unMineable's fee of about 1%.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+/// "Pay me in" + payout address for unMineable. Shown under Payouts & worker and on the XMR page
+/// when its pool is unMineable; both edit the same settings.
+private struct UnmineablePayoutFields: View {
+    @Environment(MiningCoordinator.self) private var coordinator
+
+    var body: some View {
+        @Bindable var store = coordinator.store
+        let coin = store.settings.unmineablePayoutCoin
+        Picker("Pay me in", selection: $store.settings.unmineablePayoutCoin) {
+            ForEach(UnmineablePayout.coins, id: \.tag) { Text("\($0.name) (\($0.tag))").tag($0.tag) }
+        }
+        TextField("\(coin) address", text: $store.settings.unmineableAddress,
+                  prompt: Text("Your \(coin) address, e.g. from Trust Wallet"))
+            .textFieldStyle(.roundedBorder)
+        if let ok = WalletValidator.checkPayout(tag: coin, address: store.settings.unmineableAddress) {
+            Label(ok ? "Address format looks right" : "That doesn't look like a \(coin) address – check you copied the \(coin) one",
+                  systemImage: ok ? "checkmark.circle" : "xmark.octagon")
+                .font(.caption).foregroundStyle(ok ? Color.green : Color.red)
+        }
     }
 }
 
@@ -253,18 +270,32 @@ private struct CoinRow: View {
                     Label("Ready", systemImage: "checkmark.circle").font(.caption).foregroundStyle(.green)
                 }
             }
-            TextField("\(tag) wallet", text: wallet, prompt: Text(coin.walletHint))
-                .textFieldStyle(.roundedBorder)
-            if let ok = WalletValidator.check(tag: tag, address: wallet.wrappedValue) {
-                Label(ok ? "Address format looks right" : "That doesn't look like a valid \(tag) address",
-                      systemImage: ok ? "checkmark.circle" : "xmark.octagon")
-                    .font(.caption).foregroundStyle(ok ? Color.green : Color.red)
-            }
+            let selectedPool = store.settings.pool(for: coin)
+            let viaUnmineable = selectedPool?.paysViaUnmineable == true
             Picker("Pool", selection: poolChoice) {
                 ForEach(coin.pools) { pool in
-                    Text(verbatim: "\(pool.name) – \(pool.address)\(pool.tls ? " (TLS)" : "") · \(pool.feePercent.formatted())% fee").tag(pool.id)
+                    Text(verbatim: "\(pool.name) · \(pool.feePercent.formatted())% fee").tag(pool.id)
                 }
                 Text("Custom…").tag("custom")
+            }
+            if let selectedPool, poolChoice.wrappedValue != "custom" {
+                Text(verbatim: selectedPool.address + (selectedPool.tls ? " · TLS" : ""))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if viaUnmineable {
+                // Paid in another coin: the address that gets paid replaces the coin's own wallet.
+                // The coin's wallet stays saved and comes back if another pool is picked.
+                UnmineablePayoutFields()
+                Text("Your Mac mines \(coin.name); unMineable pays you in \(store.settings.unmineablePayoutCoin) (fee about 1%). Same setting as under Payouts & worker.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                TextField("\(tag) wallet", text: wallet, prompt: Text(coin.walletHint))
+                    .textFieldStyle(.roundedBorder)
+                if let ok = WalletValidator.check(tag: tag, address: wallet.wrappedValue) {
+                    Label(ok ? "Address format looks right" : "That doesn't look like a valid \(tag) address",
+                          systemImage: ok ? "checkmark.circle" : "xmark.octagon")
+                        .font(.caption).foregroundStyle(ok ? Color.green : Color.red)
+                }
             }
             if poolChoice.wrappedValue == "custom" || coin.pools.isEmpty {
                 HStack {
@@ -274,11 +305,6 @@ private struct CoinRow: View {
                 }
                 TextField("Login format", text: custom.userTemplate, prompt: Text("{wallet}.{worker}"))
                 Text("Use {wallet} and {worker}. Most pools take {wallet}.{worker}; Kryptex takes {wallet}/{worker}.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            if store.settings.pool(for: coin)?.paysViaUnmineable == true {
-                Label("Paid in \(store.settings.unmineablePayoutCoin) via unMineable – set the payout coin and address under Payouts & worker. The wallet above isn't used.",
-                      systemImage: "arrow.triangle.swap")
                     .font(.caption).foregroundStyle(.secondary)
             }
             if let note = coin.note { Text(note).font(.caption).foregroundStyle(.secondary) }

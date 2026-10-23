@@ -257,7 +257,7 @@ struct MinerSettings: Codable, Equatable {
         if option.engine == .kawpow && pool.tls { return "kawpow-metal can't use TLS pools" }
         if pool.paysViaUnmineable {
             return unmineableAddress.trimmingCharacters(in: .whitespaces).isEmpty
-                ? "Needs an unMineable payout address" : nil
+                ? "Needs a \(unmineablePayoutCoin) payout address" : nil
         }
         let hasWallet = !wallet(for: coin.tag).isEmpty
         let canUseKryptex = pool.acceptsKryptexAccount && !kryptexAccount.trimmingCharacters(in: .whitespaces).isEmpty

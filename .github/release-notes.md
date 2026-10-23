@@ -1,6 +1,12 @@
 MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Macs (M1–M5). It mines on the CPU and GPU, ranks coins by profit after electricity and switches automatically. [Full guide with screenshots](https://cryptominingonmacs.com/viewtopic.php?t=170).
 
-## What's new in 0.4.9
+## What's new in 0.4.10
+
+- **Clearer unMineable setup on the Monero page.** When Monero's pool is set to unMineable, the Monero wallet field is replaced by **Pay me in** and your payout address (for example your Dogecoin address from Trust Wallet), so the page shows the one address that actually gets paid. Your Monero wallet stays saved and comes back if you switch to another pool. It's the same setting as under Payouts & worker.
+- **Payout address check.** The payout address is checked against the coin you picked (Dogecoin, Litecoin, Bitcoin, Tron, Solana and others), so pasting an address for the wrong coin shows a warning right away.
+- Pool menus now show just the pool name and fee, with the server address underneath, so long names aren't cut off.
+
+## Also in 0.4.9
 
 - **Get paid into Trust Wallet (or any wallet) in another coin.** Settings › Coins & Wallets › Payouts & worker has a new **unMineable** option: your Mac keeps mining Monero on the CPU, and unMineable pays you in Dogecoin, Litecoin, Bitcoin, Tron, Solana and more, to the address you enter. No Monero wallet needed. Earnings are the same as Monero, less unMineable's fee of about 1%.
 - **Reorganized Coins & Wallets.** A compact list on the left, grouped into CPU, GPU and *More coins (bring your own pool)*, with a ready / needs-setup dot and each coin's current net per day, sorted best first, plus an All / Ready / Needs setup filter. The selected coin's wallet and pool are on the right. Worker name, Kryptex and unMineable are under **Payouts & worker** at the top.

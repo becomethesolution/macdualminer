@@ -670,6 +670,45 @@ enum WalletValidator {
         return a.count == 42 && a.hasPrefix("0x") && a.dropFirst(2).allSatisfy(\.isHexDigit)
     }
 
+    private static let bech32 = Set("qpzry9x8gf2tvdw0s3jn54khce6mua7l")
+
+    private static func isBase58(_ a: String, first: Set<Character>, lengths: ClosedRange<Int>) -> Bool {
+        guard let f = a.first, first.contains(f), lengths.contains(a.count) else { return false }
+        return a.allSatisfy { base58.contains($0) }
+    }
+
+    private static func isBech32(_ a: String, prefix: String, lengths: ClosedRange<Int>) -> Bool {
+        let lower = a.lowercased()
+        guard lower.hasPrefix(prefix), lengths.contains(a.count), a == lower || a == a.uppercased() else { return false }
+        return lower.dropFirst(prefix.count).allSatisfy { bech32.contains($0) }
+    }
+
+    /// Format check for an unMineable payout address in the chosen coin. nil = no opinion.
+    /// Only a typo/wrong-coin guard: it never blocks mining, it only shows a warning.
+    static func checkPayout(tag: String, address raw: String) -> Bool? {
+        let a = raw.trimmingCharacters(in: .whitespaces)
+        guard !a.isEmpty else { return nil }
+        if a.contains(" ") { return false }
+        switch tag {
+        case "DOGE": return isBase58(a, first: ["D", "A", "9"], lengths: 34...34)
+        case "LTC":  return isBase58(a, first: ["L", "M", "3"], lengths: 33...34) || isBech32(a, prefix: "ltc1", lengths: 43...63)
+        case "BTC":  return isBase58(a, first: ["1", "3"], lengths: 26...35) || isBech32(a, prefix: "bc1", lengths: 42...62)
+        case "BCH":
+            let body = a.lowercased().hasPrefix("bitcoincash:") ? String(a.dropFirst(12)) : a
+            return isBech32(body, prefix: "q", lengths: 42...42) || isBech32(body, prefix: "p", lengths: 42...42)
+                || isBase58(body, first: ["1", "3"], lengths: 26...35)
+        case "TRX":  return isBase58(a, first: ["T"], lengths: 34...34)
+        case "SOL":  return isBase58(a, first: Set(base58), lengths: 32...44)
+        case "ADA":  return isBech32(a, prefix: "addr1", lengths: 58...120) ? true : nil
+        case "DASH": return isBase58(a, first: ["X", "7"], lengths: 34...34)
+        case "DGB":  return isBase58(a, first: ["D", "S"], lengths: 34...34) || isBech32(a, prefix: "dgb1", lengths: 43...63)
+        case "ETC":  return isHex40(a)
+        case "RVN":  return isRavencoin(a)
+        case "ZEC":  return isBase58(a, first: ["t"], lengths: 35...35)
+        default:     return nil
+        }
+    }
+
     /// nil = no opinion (format not checked for this coin).
     static func check(tag: String, address: String) -> Bool? {
         guard !address.isEmpty else { return nil }
