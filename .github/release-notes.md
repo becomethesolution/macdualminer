@@ -1,6 +1,14 @@
 MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Macs (M1–M5). It mines on the CPU and GPU, ranks coins by profit after electricity and switches automatically. [Full guide with screenshots](https://cryptominingonmacs.com/viewtopic.php?t=170).
 
-## What's new in 0.4.11
+## What's new in 0.5.0
+
+- **Setup assistant.** The first time you open the app it walks you through three steps: your electricity price, where to get paid (any wallet such as Trust Wallet via unMineable, your own coin wallets, or a Kryptex account), and the benchmark. Settings › General › Setup assistant opens it again.
+- **Pool balance on the Dashboard.** A new panel shows the unpaid balance waiting for you at Kryptex, unMineable, SupportXMR and 2Miners, with progress towards each pool's payout threshold – proof your mining is landing somewhere. Updated every 10 minutes from the pools' public pages; nothing to sign in to.
+- **What each chip earns.** Profit Check's *Best option* now shows each chip's own net per day. When one chip loses money on its best coin, it says how much and what keeping that chip idle would save, with a checkbox to do that. Start still mines every chip you start, as before.
+- **Benchmark your way.** The menu next to *Benchmark this Mac* chooses which engines it runs, and right-clicking a coin on Profit Check benchmarks just that one (unmeasured coins also get a *Benchmark* link). *Skip* from 0.4.11 still skips the engine being measured.
+- **Live UselethMiner stats.** UselethMiner held back its output and the app saw it in one-minute bursts; it now runs in a terminal-style session, so hashrate updates every second. Its share count now counts the shares it submits – UselethMiner doesn't report whether the pool accepted them.
+
+## Also in 0.4.11
 
 - **UselethMiner fixed.** Installed from the app, UselethMiner quit at start with "dlopen … libpycfethash_armv8af.dylib (no such file)": it only runs from /usr/local/uselethminer (its compiled code loads its libraries from there, and macOS won't let it look elsewhere). **Settings › Engines › Download & install** now installs the author's package there with Apple's installer, after checking its SHA-256, so macOS asks for your password once. The old copy in the app's folder is removed automatically – if you had installed UselethMiner before, click Download & install again. Remove also asks for your password.
 - **Skip a benchmark step.** While Benchmark this Mac is running, Profit Check shows **Skip <engine>** next to Cancel: it stops the engine being tested and moves on to the next one. Useful for UselethMiner, whose first run spends several minutes building its DAG. A skipped engine keeps its earlier result, if it had one.

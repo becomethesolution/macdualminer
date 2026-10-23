@@ -56,6 +56,8 @@ Measured on the M5 Max: XMRig does about 7.0–7.9 kH/s with the CPU alone (abou
 - **NiceHash-like interface:** a sidebar, a large Start All / Stop All button with live profitability, and one row per device (CPU and GPU) showing coin, algorithm, engine, hashrate, watts and shares, with a coin menu, a power slider and its own Start/Stop button. It also shows your Mac's own name, model and chip details, and comes in a Dark or Light look, or follows macOS (Settings › General).
 - **Power vs Earnings chart:** power draw against gross and net $/day over the last 1, 6 or 24 hours. A point is recorded every 30 seconds and the history is kept between launches; hover to read exact values.
 - **Temperatures:** chip and battery temperature under Power & Thermals, in °F or °C.
+- **Setup assistant:** on first launch, three steps – electricity price, where to get paid, benchmark.
+- **Pool balance:** the Dashboard shows your unpaid balance at Kryptex, unMineable, SupportXMR and 2Miners, and how close each is to paying out.
 - **Get paid in another coin:** mine Monero through unMineable and get paid in Dogecoin, Litecoin, Bitcoin, Tron, Solana and more, straight to a Trust Wallet (or any) address. No Monero wallet needed.
 - **Auto-switch per chip:** CPU and GPU auto-switch toggles in the Auto-switching panel. Off keeps that chip on its current coin; on lets it switch to the best coin again.
 - **Pick a coin per chip:** the coin under the CPU and GPU on the Dashboard is a menu: Auto (best coin) or any coin that chip can mine, with its net per day. Picking one pins just that chip (UselethMiner uses both chips, so it pins both).
@@ -74,7 +76,7 @@ Measured on the M5 Max: XMRig does about 7.0–7.9 kH/s with the CPU alone (abou
 
   Data comes from WhatToMine plus CoinGecko's BTC price. Coins too thinly traded to sell, coins with stale network data, and coins without a wallet or pool are flagged rather than picked.
 - **Auto-switching.** The app picks the best CPU + GPU combination, or UselethMiner on both, and re-checks every 15 minutes. It switches only when the new plan is at least 10% better and the current coins have run for 20 minutes. All three thresholds are adjustable. The other modes are *Recommend*, which shows a "Switch" button, and *Manual*.
-- **Benchmark this Mac.** Runs each installed engine for about 2 minutes on its best ready coin and records hashrate and power. Engines that mine steadily for 5 minutes also update their numbers automatically.
+- **Benchmark this Mac.** Runs each installed engine for about 2 minutes on its best ready coin and records hashrate and power. Engines that mine steadily for 5 minutes also update their numbers automatically. Choose which engines it runs from the menu beside it, skip one while it runs, or right-click a coin to benchmark just that one.
 - **Power rating 1–10 for CPU and GPU separately.**
   - CPU: the level sets how many cores mine.
   - GPU: the level sets how much of each second the GPU engine runs; it's paused and resumed in short bursts.
