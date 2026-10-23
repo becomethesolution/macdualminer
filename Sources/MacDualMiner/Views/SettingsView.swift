@@ -113,7 +113,7 @@ private struct CoinsSettings: View {
     }
 
     private func engines(for algorithm: Algorithm) -> String {
-        EngineKind.allCases.filter { $0.algorithms.contains(algorithm) }
+        EngineKind.allCases.filter { $0.algorithms.contains(algorithm.hashFamily) }
             .map { "\($0.displayName) (\($0.deviceLabel))" }.joined(separator: ", ")
     }
 }

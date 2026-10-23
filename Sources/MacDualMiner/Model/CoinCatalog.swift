@@ -12,7 +12,13 @@ enum Algorithm: String, Codable, CaseIterable, Identifiable {
     case kawPow = "KawPow"
     case ethash = "Ethash"
     case ghostRider = "GhostRider"
+    /// Tari's standalone RandomX chain. Same hashing as RandomX (the pool supplies Tari's seed), so it
+    /// shares RandomX's benchmarks; only the market data differs.
+    case tariRandomX = "TariRandomX"
     var id: String { rawValue }
+
+    /// The algorithm whose hashrate and power numbers apply.
+    var hashFamily: Algorithm { self == .tariRandomX ? .randomX : self }
 }
 
 /// One engine running one algorithm – hashrates are measured and estimated per pair.
@@ -153,6 +159,9 @@ enum CoinCatalog {
                     PoolPreset(id: "kryptex", name: kryptex, address: "xmr.kryptex.network:7029", tls: false, feePercent: 1, userTemplate: "{wallet}/{worker}", acceptsKryptexAccount: true),
                  ],
                  walletHint: "4… or 8… (95 characters)", note: nil, experimental: false, xmrigAlgo: "rx/0"),
+        CoinSpec(tag: "XTM", name: "Tari (RandomX)", algorithm: .tariRandomX, engines: [.xmrig],
+                 pools: [PoolPreset(id: "kryptex", name: kryptex, address: "xtm-rx.kryptex.network:7038", tls: false, feePercent: 1, userTemplate: "{wallet}/{worker}")],
+                 walletHint: "Tari wallet address", note: "Tari's own RandomX chain (not the merge-mined bonus)", experimental: true, xmrigAlgo: "rx/0"),
         CoinSpec(tag: "ZEPH", name: "Zephyr", algorithm: .randomX, engines: [.xmrig],
                  pools: [PoolPreset(id: "kryptex", name: kryptex, address: "zeph.kryptex.network:7030", tls: false, feePercent: 1, userTemplate: "{wallet}/{worker}", acceptsKryptexAccount: true)],
                  walletHint: "ZEPH… address", note: nil, experimental: false, xmrigAlgo: "rx/0"),
@@ -197,7 +206,8 @@ enum CoinCatalog {
         UnsupportedCoin(tag: "ERG", algorithmName: "Autolykos", reason: "Only MacMiner (closed GUI app) mines Autolykos on Macs"),
         UnsupportedCoin(tag: "ETC", algorithmName: "Etchash", reason: "ethminer-m1 and UselethMiner only do Ethash, not Etchash"),
         UnsupportedCoin(tag: "MEWC", algorithmName: "MeowPow", reason: "MeowPow is a KawPow variant kawpow-metal doesn't implement"),
-        UnsupportedCoin(tag: "XTM", algorithmName: "TariRandomX", reason: "Tari's RandomX variant isn't in the bundled XMRig config"),
+        UnsupportedCoin(tag: "XEL", algorithmName: "XelisHash", reason: "No Apple Silicon build of a Xelis miner yet"),
+        UnsupportedCoin(tag: "VRSC", algorithmName: "VerusHash", reason: "No Apple Silicon build of a Verus miner yet"),
         UnsupportedCoin(tag: "XDAG", algorithmName: "RandomX", reason: "XDAG needs a special XMRig fork"),
     ]
 
@@ -224,7 +234,7 @@ struct MiningOption: Hashable, Identifiable, Codable {
     }
 
     var coin: CoinSpec? { CoinCatalog.coin(coinTag) }
-    var engineAlgo: EngineAlgo { EngineAlgo(engine, coin?.algorithm ?? engine.primaryAlgorithm) }
+    var engineAlgo: EngineAlgo { EngineAlgo(engine, coin?.algorithm.hashFamily ?? engine.primaryAlgorithm) }
     var label: String { "\(coin?.name ?? coinTag) (\(coinTag)) · \(engine.displayName)" }
 
     static var all: [MiningOption] {

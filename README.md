@@ -6,7 +6,7 @@ MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Mac
 
 | Engine | Part of the chip | Algorithm | Coins in the profit check | How it ships |
 |---|---|---|---|---|
-| [XMRig](https://github.com/xmrig/xmrig) | CPU | RandomX, GhostRider | Monero, Zephyr, QRL, Epic Cash, Etica, Raptoreum | Bundled (official release, SHA-256 verified) |
+| [XMRig](https://github.com/xmrig/xmrig) | CPU | RandomX, GhostRider | Monero, Tari, Zephyr, QRL, Epic Cash, Etica, Raptoreum | Bundled (official release, SHA-256 verified) |
 | [kawpow-metal](https://github.com/imperatormk/kawpow-metal) | GPU (Metal) | KawPow | Ravencoin, Quai, Neoxa, Neurai, Kerrigan | Bundled (built from a pinned commit) |
 | [ethminer-m1](https://github.com/gyf304/ethminer-m1) | GPU (OpenCL) | Ethash | EthereumPoW, OctaSpace, QuarkChain | Bundled (release binary, pinned SHA-256) |
 | [UselethMiner](https://github.com/Chainfire/UselethMiner) | CPU + GPU | Ethash | EthereumPoW | Optional in-app download (closed source, 1% fee) |
@@ -52,6 +52,7 @@ Measured on the M5 Max: XMRig does about 7.0–7.9 kH/s with the CPU alone (abou
 - **NiceHash-like interface:** a sidebar, a large Start/Stop button with live profitability, and one row per device (CPU and GPU) showing coin, algorithm, engine, hashrate, watts and shares, with an on/off switch and power slider for each. It also shows your Mac's own name, model and chip details, and comes in a Dark or Light look, or follows macOS (Settings › General).
 - **Power vs Earnings chart:** power draw against gross and net $/day over the last 1, 6 or 24 hours. A point is recorded every 30 seconds and the history is kept between launches; hover to read exact values.
 - **Temperatures:** chip and battery temperature under Power & Thermals, in °F or °C.
+- **Pick a coin per chip:** the coin under the CPU and GPU on the Dashboard is a menu: Auto (best coin) or any coin that chip can mine, with its net per day. Picking one pins just that chip.
 - **Start All or one at a time:** Start All Miners, or start and stop the CPU and GPU separately from their rows on the Dashboard. Start always mines: when nothing is profitable at your electricity price, auto mode mines the least costly coin and a note under the device says so (or keep the device idle with a setting in Switching).
 - **Feedback from the app:** Help › Send Feedback… and Help › Share Your Hashrate… open a GitHub issue with the app version, Mac model, chip and macOS version already filled in (your Mac's name is left out).
 - **Help & community:** the Help menu, Settings › General and the sidebar link to the [MacDualMiner guide](https://cryptominingonmacs.com/viewtopic.php?t=170), the [CryptoMiningOnMacs.com](https://cryptominingonmacs.com/) community (the macOS crypto mining community) and GitHub Issues. Reference hashrates in Profit Check link to the tests they come from.

@@ -105,6 +105,9 @@ struct MinerSettings: Codable, Equatable {
     /// Auto mode: keep a started device idle when every coin it could mine loses money after electricity.
     /// Off by default – Start always mines, picking the least costly coin when nothing is profitable.
     var idleWhenUnprofitable = false
+    /// Auto mode: coin picked from a device row's menu, by device ("cpu"/"gpu") → MiningOption id.
+    /// A pinned device mines that coin; the other device keeps auto-switching. Empty = Auto.
+    var pinnedOptions: [String: String] = [:]
     var manualCPUOption = "xmrig:XMR"
     var manualGPUOption = "kawpow:RVN"
     var switchCheckMinutes = 15
@@ -195,6 +198,11 @@ struct MinerSettings: Codable, Equatable {
     var cpuTuningSignature: String {
         [String(cpuPowerLevel), String(cpuPriority), String(cpuYield), String(uselethThreads)]
             .joined(separator: "|")
+    }
+
+    /// The coin picked for a device in auto mode, if any.
+    func pinnedOption(for device: Device) -> MiningOption? {
+        pinnedOptions[device.rawValue].flatMap { MiningOption(id: $0) }
     }
 
     // MARK: Wallets & pools

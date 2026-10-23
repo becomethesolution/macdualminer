@@ -158,6 +158,77 @@ private struct BigStartButton: View {
 
 // MARK: - Devices
 
+/// The coin under each device, as a menu: Auto (best coin) or any coin this part of the chip can mine,
+/// with its current net per day. Coins that aren't ready are shown greyed out with the reason.
+private struct CoinMenu: View {
+    @Environment(MiningCoordinator.self) private var coordinator
+    @Environment(UIState.self) private var uiState
+    @Environment(\.openSettings) private var openSettings
+    let device: Device
+    let current: MiningOption?
+
+    var body: some View {
+        let s = coordinator.settings
+        let auto = s.switchingMode == .auto
+        let pinned = auto ? s.pinnedOption(for: device) : nil
+        let rows = coordinator.ranked
+            .filter { $0.devices.contains(device) }
+            .sorted { ($0.isEligible ? 1 : 0, $0.netUSDPerDay) > ($1.isEligible ? 1 : 0, $1.netUSDPerDay) }
+        Menu {
+            if auto {
+                Button {
+                    coordinator.choose(nil, for: [device])
+                } label: {
+                    Label("Auto – best coin", systemImage: pinned == nil ? "checkmark" : "wand.and.stars")
+                }
+                Divider()
+            }
+            ForEach(rows) { row in
+                Button {
+                    coordinator.choose(row.option, for: row.devices)
+                } label: {
+                    let selected = auto ? pinned == row.option : current == row.option
+                    Label(title(for: row), systemImage: selected ? "checkmark" : (row.isEligible ? "circle" : "exclamationmark.circle"))
+                }
+                .disabled(!row.isEligible)
+            }
+            Divider()
+            Button("Add a wallet or pool…") {
+                uiState.settingsTab = .coins
+                openSettings()
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 4) {
+                    Text(current.map { "\($0.coin?.name ?? $0.coinTag) (\($0.coinTag))" } ?? "Choose a coin")
+                        .font(.callout.weight(.semibold)).lineLimit(1)
+                    Image(systemName: "chevron.up.chevron.down").font(.caption2).foregroundStyle(.secondary)
+                }
+                Text(subtitle(current: current, auto: auto, pinned: pinned))
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Choose the coin for the \(device.label), or Auto to let MacDualMiner pick the best one")
+    }
+
+    private func title(for row: RankedOption) -> String {
+        var t = "\(row.coinName) (\(row.option.coinTag)) · \(row.option.engine.displayName)"
+        if row.devices.count == 2 { t += " · uses CPU + GPU" }
+        t += row.isEligible ? " · \(Format.usd(row.netUSDPerDay))/day" : " · \(row.status.label)"
+        return t
+    }
+
+    private func subtitle(current: MiningOption?, auto: Bool, pinned: MiningOption?) -> String {
+        let engine = current.map { "\($0.coin?.algorithm.rawValue ?? "") · \($0.engine.displayName)" } ?? "No coin ready"
+        if !auto { return engine + " · manual" }
+        return engine + (pinned == nil ? " · Auto" : " · your pick")
+    }
+}
+
 private struct DeviceRow: View {
     @Environment(MiningCoordinator.self) private var coordinator
     @Environment(UIState.self) private var uiState
@@ -191,12 +262,8 @@ private struct DeviceRow: View {
             }
             .frame(width: 260, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(option.map { "\($0.coin?.name ?? $0.coinTag) (\($0.coinTag))" } ?? "—").font(.callout.weight(.semibold))
-                Text(option.map { "\($0.coin?.algorithm.rawValue ?? "") · \($0.engine.displayName)" } ?? "No coin ready")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            .frame(width: 170, alignment: .leading)
+            CoinMenu(device: device, current: option)
+                .frame(width: 170, alignment: .leading)
 
             VStack(alignment: .trailing, spacing: 3) {
                 Text(Format.hashrate(hashrate)).font(.system(.title3, design: .rounded).weight(.semibold)).monospacedDigit()

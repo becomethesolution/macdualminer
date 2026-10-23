@@ -104,17 +104,32 @@ final class MiningCoordinator {
         evaluate()
     }
 
-    /// Mine one option on its device(s), keeping whatever runs on the other part of the chip.
+    /// Mine one option on its device(s) and start them, keeping whatever runs on the other part of the chip.
     func mine(_ option: MiningOption) {
-        var options = activePlan.options.filter { $0.engine.devices.isDisjoint(with: option.engine.devices) }
-        options.append(option)
-        if settings.switchingMode == .auto { store.settings.switchingMode = .manual }
-        adopt(MiningPlan(options: options, netUSDPerDay: ProfitPlanner.value(of: options, in: ranked)),
-              reason: "You chose \(option.label)")
-        if !option.engine.devices.isSubset(of: wantedDevices) {
-            wantedDevices.formUnion(option.engine.devices)
-            evaluate()
+        choose(option, for: option.engine.devices)
+        wantedDevices.formUnion(option.engine.devices)
+        evaluate()
+    }
+
+    /// The coin menu under each device: pick a coin (nil = Auto). In auto mode the choice pins that device
+    /// while the other keeps auto-switching; in manual or recommend mode it sets the manual coin.
+    func choose(_ option: MiningOption?, for devices: Set<Device>) {
+        if settings.switchingMode == .auto {
+            for device in Device.allCases {
+                // A coin that used both parts of the chip can't stay pinned on just one.
+                if let pinned = settings.pinnedOption(for: device), !pinned.engine.devices.isDisjoint(with: devices) {
+                    store.settings.pinnedOptions[device.rawValue] = nil
+                }
+            }
+            for device in devices { store.settings.pinnedOptions[device.rawValue] = option?.id }
+        } else if let option {
+            if option.engine.devices.contains(.cpu) { store.settings.manualCPUOption = option.id }
+            if option.engine.devices.contains(.gpu) { store.settings.manualGPUOption = option.id }
         }
+        if let option { log("You picked \(option.label) for the \(option.engine.deviceLabel)") }
+        else { log("\(devices.map(\.label).sorted().joined(separator: " + ")) back on Auto") }
+        lastSwitchCheck = nil
+        evaluate()
     }
 
     // MARK: - Profit check
@@ -242,14 +257,27 @@ final class MiningCoordinator {
             guard !profit.markets.isEmpty, profit.btcUSD != nil else { return activePlan.options.isEmpty ? manualPlan() : activePlan }
             // Plan only for the parts of the chip that are started (both while stopped, to show the plan).
             let planDevices = wantedDevices.isEmpty ? Set(Device.allCases) : wantedDevices
-            let rankedNow = ranked.filter { $0.devices.isSubset(of: planDevices) }
+            var rankedNow = ranked.filter { $0.devices.isSubset(of: planDevices) }
+            // Coins picked in a device's menu: on that device only the picked coin is a candidate.
+            let pinned = Array(Set(Device.allCases.compactMap { s.pinnedOption(for: $0) }))
+                .filter { $0.engine.devices.isSubset(of: planDevices) }
+            let pinnedDevices = pinned.reduce(into: Set<Device>()) { $0.formUnion($1.engine.devices) }
+            if !pinned.isEmpty {
+                rankedNow = rankedNow.filter { $0.devices.isDisjoint(with: pinnedDevices) || pinned.contains($0.option) }
+            }
             let skipLosses = s.idleWhenUnprofitable
-            let best = ProfitPlanner.bestPlan(rankedNow, skipUnprofitable: skipLosses)
+            var best = ProfitPlanner.bestPlan(rankedNow, skipUnprofitable: skipLosses)
+            // A picked coin runs even when it loses money – the user chose it.
+            for option in pinned where !best.options.contains(option)
+                && (rankedNow.first { $0.option == option }?.isEligible ?? false) {
+                best.options = best.options.filter { $0.engine.devices.isDisjoint(with: option.engine.devices) } + [option]
+                best.netUSDPerDay = ProfitPlanner.value(of: best.options, in: rankedNow)
+            }
             unprofitableDevices = skipLosses ? ProfitPlanner.losingDevices(rankedNow) : []
             // A running coin that now loses money is dropped straight away – no margin or minimum run time.
             let currentEligible = !activePlan.options.isEmpty && activePlan.options.allSatisfy { o in
                 guard let row = rankedNow.first(where: { $0.option == o }), row.isEligible else { return false }
-                return !skipLosses || row.netUSDPerDay > 0
+                return !skipLosses || row.netUSDPerDay > 0 || pinned.contains(o)
             }
             guard currentEligible else {
                 if best.options != activePlan.options {

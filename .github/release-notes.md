@@ -1,6 +1,13 @@
 MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Macs (M1–M5). It mines on the CPU and GPU, ranks coins by profit after electricity and switches automatically. [Full guide with screenshots](https://cryptominingonmacs.com/viewtopic.php?t=170).
 
-## What's new in 0.4.5
+## What's new in 0.4.6
+
+- **Pick a coin for each chip.** The coin under the CPU and GPU on the Dashboard is now a menu: **Auto – best coin**, or any coin that part of the chip can mine, with its current net per day. Picking a coin pins only that chip; the other keeps auto-switching. Coins that aren't ready show why (for example, a missing wallet), with a shortcut to add one.
+- **Mine in Profit Check** now pins that coin the same way instead of switching the whole app to manual mode.
+- **Tari (XTM) on the CPU.** Tari's own RandomX chain can now be mined with XMRig on Kryptex's Tari pool (needs a Tari wallet). It uses your RandomX benchmark, so no extra benchmarking is needed.
+- The auto-switching log now says "least costly option" when nothing is profitable, instead of "best profitable option".
+
+## Also in 0.4.5
 
 - **Start always mines.** Start All Miners now starts mining right away, even when nothing is profitable at your electricity price: auto mode picks the least costly coin. A note under the CPU or GPU row says so ("As of current calculations, … won't be profitable at $x/kWh – about −$y/day") and points out any coin that would pay if you add a wallet. No pop-ups. If you'd rather keep a device idle until a coin is profitable, turn on Settings › Switching › *Keep a started device idle when every coin on it would lose money*.
 - **Start and stop the CPU and GPU separately.** Each device row on the Dashboard has its own Start/Stop button. The main button is now **Start All Miners / Stop All Miners**.
