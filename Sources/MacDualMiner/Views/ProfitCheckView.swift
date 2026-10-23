@@ -14,7 +14,7 @@ struct ProfitCheckView: View {
         // shared state on every update and blanked the whole window in 0.3.0.
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                summary(best: best)
+                summary(best: best, ranked: ranked)
                 Panel(title: "All coins this Mac can mine", systemImage: "list.bullet.rectangle") {
                     VStack(spacing: 0) {
                         ProfitHeaderRow()
@@ -31,13 +31,39 @@ struct ProfitCheckView: View {
         }
     }
 
-    private func summary(best: MiningPlan) -> some View {
-        HStack(alignment: .top, spacing: 16) {
+    private func summary(best: MiningPlan, ranked: [RankedOption]) -> some View {
+        // What each chip makes on its part of the plan, and how much the losing ones cost.
+        let parts: [(option: MiningOption, net: Double)] = best.options.map { o in
+            (o, ranked.first { $0.option == o }?.netUSDPerDay ?? 0)
+        }
+        let losing = parts.filter { $0.net < 0 }
+        let earning = parts.filter { $0.net >= 0 }
+        let idleSaves = -losing.reduce(0) { $0 + $1.net }
+        return HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Best option right now").font(.caption).foregroundStyle(.secondary)
                 Text(best.summary).font(.headline)
                 Text("\(Format.usd(best.netUSDPerDay))/day net · \(Format.usd(best.netUSDPerDay * 30.4375))/month")
                     .font(.callout).foregroundStyle(best.netUSDPerDay >= 0 ? Color.green : Color.red)
+                if parts.count > 1 {
+                    HStack(spacing: 12) {
+                        ForEach(parts, id: \.option) { part in
+                            Text("\(part.option.engine.deviceLabel) · \(part.option.coinTag) \(Format.usd(part.net))/day")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(part.net >= 0 ? Color.green : Color.red)
+                        }
+                    }
+                }
+                if !losing.isEmpty && !earning.isEmpty {
+                    // Start still mines every started chip (the user's choice); this just shows the cost.
+                    let names = losing.map { $0.option.engine.deviceLabel }.joined(separator: " and ")
+                    Text("The \(names) loses \(Format.usd(idleSaves))/day here. Keeping it idle would make this \(Format.usd(best.netUSDPerDay + idleSaves))/day.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Toggle("Keep a chip idle while every coin on it loses money", isOn: Binding(
+                        get: { coordinator.settings.idleWhenUnprofitable },
+                        set: { coordinator.store.settings.idleWhenUnprofitable = $0 }))
+                        .toggleStyle(.checkbox).font(.caption)
+                }
                 if let note = coordinator.benchmarkStatus {
                     Text(note).font(.caption).foregroundStyle(.secondary)
                 }
