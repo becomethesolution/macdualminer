@@ -88,7 +88,6 @@ private struct GeneralSettings: View {
     }
 }
 
-/// One row per coin: algorithm, engines, wallet and pool.
 /// Coins & Wallets: a list of coins (with a Payouts entry first) on the left, the selected one's settings on the right.
 private struct CoinsSettings: View {
     @Environment(MiningCoordinator.self) private var coordinator
@@ -146,6 +145,11 @@ private struct CoinsSettings: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        // A coin picked from elsewhere (e.g. the Dashboard) must be visible in the list.
+        .onChange(of: ui.selectedCoin) { _, tag in
+            if let tag, tag != Self.payoutsID, !coins.contains(where: { $0.tag == tag }) { filter = .all }
+        }
+        .onAppear { filter = .all }
     }
 
     private func isReady(_ coin: CoinSpec, _ s: MinerSettings) -> Bool {

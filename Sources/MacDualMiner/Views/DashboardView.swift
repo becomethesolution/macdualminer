@@ -199,6 +199,7 @@ private struct CoinMenu: View {
                 Divider()
                 Button("Add a wallet or pool…") {
                     uiState.settingsTab = .coins
+                    uiState.selectedCoin = (pinned ?? current)?.coinTag
                     openSettings()
                 }
             } label: {

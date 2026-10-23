@@ -275,7 +275,10 @@ struct MinerSettings: Codable, Equatable {
         } else {
             payTo = own.isEmpty ? kryptexAccount.trimmingCharacters(in: .whitespaces) : own
         }
-        let worker = effectiveWorkerName
+        // unMineable splits the login on dots, so keep its worker name to letters, digits, - and _.
+        let worker = pool.paysViaUnmineable
+            ? String(effectiveWorkerName.filter { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }.prefix(32))
+            : effectiveWorkerName
         return MiningJob(option: option, poolAddress: pool.address, tls: pool.tls, poolFeePercent: pool.feePercent,
                          login: PoolLogin.build(template: pool.userTemplate, wallet: payTo, worker: worker),
                          worker: worker)

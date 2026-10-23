@@ -168,7 +168,7 @@ enum CoinCatalog {
                  pools: [
                     PoolPreset(id: "supportxmr", name: "SupportXMR", address: "pool.supportxmr.com:443", tls: true, feePercent: 0.6, userTemplate: "{wallet}"),
                     PoolPreset(id: "kryptex", name: kryptex, address: "xmr.kryptex.network:7029", tls: false, feePercent: 1, userTemplate: "{wallet}/{worker}", acceptsKryptexAccount: true),
-                    PoolPreset(id: "unmineable", name: "unMineable – paid in another coin", address: "rx.unmineable.com:443", tls: true, feePercent: 1, userTemplate: "{wallet}.{worker}", paysViaUnmineable: true),
+                    PoolPreset(id: "unmineable", name: "unMineable (paid in another coin)", address: "rx.unmineable.com:443", tls: true, feePercent: 1, userTemplate: "{wallet}.{worker}", paysViaUnmineable: true),
                  ],
                  walletHint: "4… or 8… (95 characters)", note: nil, experimental: false, xmrigAlgo: "rx/0"),
         CoinSpec(tag: "XTM", name: "Tari (RandomX)", algorithm: .tariRandomX, engines: [.xmrig],
