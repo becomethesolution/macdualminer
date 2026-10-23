@@ -21,9 +21,13 @@ Engine choices and reference hashrates come from the Mac tests on [cryptominingo
 
 Real numbers from a 2026 MacBook Pro 16" with an M5 Max (18-core CPU, 40-core GPU, 128 GB) at $0.17/kWh electricity, using the Mac's measured power. Shown in Light mode; Dark mode is one click away in Settings. More guides and hashrate tests: [cryptominingonmacs.com](https://cryptominingonmacs.com).
 
-**Dashboard.** Live profitability after electricity, both parts of the chip with their coin, engine, hashrate, watts and shares, and the power vs earnings chart. Here Monero is mining on the CPU at about 90 W measured above idle, slightly in the red at $0.17/kWh; the GPU is stopped.
+**Dashboard.** Live profitability after electricity, both parts of the chip with their coin, engine, hashrate, watts and shares, and the power vs earnings chart. Each part of the chip has its own coin menu and Start/Stop button. Here only the CPU is started: Monero at about 84 W measured above idle, slightly in the red at $0.17/kWh, and the note under the CPU says so. The GPU is stopped and shows the coin it would mine.
 
 ![MacDualMiner dashboard on an M5 Max mining Monero on the CPU with measured power and net profit after electricity](docs/screenshots/macdualminer-dashboard-m5-max-mining-monero-cpu-gpu-paused.webp)
+
+**Power & Thermals.** Measured power, the learned idle baseline, and chip and battery temperature in °F or °C.
+
+![MacDualMiner Power & Thermals panel with chip and battery temperature on an M5 Max while mining](docs/screenshots/macdualminer-power-thermals-chip-battery-temperature.webp)
 
 **Profit Check.** Every coin the bundled engines can mine, ranked by net USD per day, with its algorithm, engine, your hashrate (live, benchmarked on this Mac, or the cryptominingonmacs.com reference), coins mined per day, 24h trading volume and whether it's ready to mine.
 
