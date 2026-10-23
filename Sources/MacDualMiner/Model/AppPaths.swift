@@ -32,9 +32,13 @@ enum AppPaths {
     static var kawpowDirectory: URL { enginesDirectory.appendingPathComponent("kawpow", isDirectory: true) }
     static var kawpowExecutable: URL { kawpowDirectory.appendingPathComponent("kawpow-metal") }
     static var ethminerExecutable: URL { enginesDirectory.appendingPathComponent("ethminer/ethminer-m1") }
-    /// UselethMiner is closed-source freeware, so it isn't bundled: the app downloads it from the author's
-    /// GitHub release on request and installs it here.
-    static var uselethDirectory: URL { supportDirectory.appendingPathComponent("engines/useleth", isDirectory: true) }
+    /// UselethMiner is closed-source freeware, so it isn't bundled: the app downloads the author's .pkg on
+    /// request and installs it with Apple's installer. Its compiled code loads its libraries from this exact
+    /// path and its hardened runtime ignores DYLD_* overrides, so it can only run from here
+    /// ("must be invoked as /usr/local/uselethminer/uselethminer" – UselethMiner README).
+    static var uselethDirectory: URL { URL(fileURLWithPath: "/usr/local/uselethminer", isDirectory: true) }
+    /// 0.3–0.4.11 unpacked UselethMiner here, where it can't load its libraries; removed on upgrade.
+    static var legacyUselethDirectory: URL { supportDirectory.appendingPathComponent("engines/useleth", isDirectory: true) }
     static var uselethExecutable: URL { uselethDirectory.appendingPathComponent("uselethminer") }
     static var benchmarksFile: URL { supportDirectory.appendingPathComponent("benchmarks.json") }
 

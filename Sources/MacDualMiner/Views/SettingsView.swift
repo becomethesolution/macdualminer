@@ -413,12 +413,12 @@ private struct EngineSettings: View {
                     if installer.isWorking {
                         ProgressView().controlSize(.small)
                     } else if installer.isInstalled {
-                        Button("Remove") { installer.uninstall() }
+                        Button("Remove") { Task { await installer.uninstall() } }
                     } else {
                         Button("Download & install") { Task { await installer.install() } }
                     }
                 }
-                Text("Closed-source freeware by Chainfire, so it isn't bundled. This downloads v\(UselethInstaller.version) from github.com/Chainfire/UselethMiner, checks its SHA-256 and unpacks it into the app's own folder – no admin password, nothing system-wide.")
+                Text("Closed-source freeware by Chainfire, so it isn't bundled. This downloads v\(UselethInstaller.version) from github.com/Chainfire/UselethMiner, checks its SHA-256 and installs it with Apple's installer in /usr/local/uselethminer – the only place UselethMiner runs from – so macOS asks for your password once.")
                     .font(.caption).foregroundStyle(.secondary)
                 if let status = installer.status { Text(status).font(.caption) }
                 Stepper(store.settings.uselethThreads == 0 ? "CPU threads: one per core (\(cores))" : "CPU threads: \(store.settings.uselethThreads)",

@@ -2,7 +2,7 @@ MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Mac
 
 ## What's new in 0.4.11
 
-- **UselethMiner works when installed from the app.** The in-app download keeps UselethMiner in MacDualMiner's own folder (no admin password), but UselethMiner looked for its hashing libraries only in /usr/local/uselethminer and quit at start with "dlopen … libpycfethash_armv8af.dylib (no such file)". MacDualMiner now tells it to load them from its own folder, so benchmarking and mining ETHW with UselethMiner work.
+- **UselethMiner fixed.** Installed from the app, UselethMiner quit at start with "dlopen … libpycfethash_armv8af.dylib (no such file)": it only runs from /usr/local/uselethminer (its compiled code loads its libraries from there, and macOS won't let it look elsewhere). **Settings › Engines › Download & install** now installs the author's package there with Apple's installer, after checking its SHA-256, so macOS asks for your password once. The old copy in the app's folder is removed automatically – if you had installed UselethMiner before, click Download & install again. Remove also asks for your password.
 - Setup messages now read "Needs your ETHW wallet" / "Needs your DOGE payout address".
 
 ## Also in 0.4.10
