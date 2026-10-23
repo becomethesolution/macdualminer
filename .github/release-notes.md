@@ -1,6 +1,10 @@
 MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Macs (M1–M5). It mines on the CPU and GPU, ranks coins by profit after electricity and switches automatically. [Full guide with screenshots](https://cryptominingonmacs.com/viewtopic.php?t=170).
 
-## What's new in 0.4.7
+## What's new in 0.4.8
+
+- **Auto-switch on/off per chip.** The Auto-switching panel on the Dashboard has a **CPU auto-switch** and a **GPU auto-switch** toggle. Turning one off keeps that chip on the coin it's mining now; turning it on lets it switch to the best coin again. It's the same setting as picking a coin (or Auto) in the chip's coin menu, so the two always match.
+
+## Also in 0.4.7
 
 - **Fixes from a full review of the 0.4.x changes:**
   - The activity log no longer repeats "Paused – every ready coin loses money" every few seconds when no coin is set up yet; it now says once that no coin is ready and to add a wallet or pool.

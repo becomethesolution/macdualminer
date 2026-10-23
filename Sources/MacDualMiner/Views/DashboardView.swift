@@ -523,6 +523,34 @@ private struct UpdateBanner: View {
 }
 
 /// Shows the switching mode, what's running and any better plan the profit check found.
+/// Auto-switch on/off for one part of the chip. Off keeps it on its current coin (the same as picking that
+/// coin in the device's menu); on returns it to Auto.
+private struct AutoSwitchToggle: View {
+    @Environment(MiningCoordinator.self) private var coordinator
+    let device: Device
+
+    var body: some View {
+        let isAuto = coordinator.settings.pinnedOption(for: device) == nil
+        let current = coordinator.activePlan.option(on: device) ?? coordinator.previewOption(for: device)
+        Toggle("\(device.label) auto-switch", isOn: Binding(
+            get: { isAuto },
+            set: { on in
+                if on {
+                    coordinator.choose(nil, for: [device])
+                } else if let current {
+                    coordinator.choose(current, for: current.engine.devices)
+                }
+            }))
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .font(.callout)
+            .disabled(isAuto && current == nil)
+            .help(isAuto
+                  ? "On: the \(device.label) switches to the best coin automatically. Turn off to keep it on \(current?.coinTag ?? "its current coin")."
+                  : "Off: the \(device.label) stays on \(coordinator.settings.pinnedOption(for: device)?.coinTag ?? "your pick"). Turn on to let it switch automatically.")
+    }
+}
+
 struct SwitchingBanner: View {
     @Environment(MiningCoordinator.self) private var coordinator
 
@@ -530,6 +558,14 @@ struct SwitchingBanner: View {
         let mode = coordinator.settings.switchingMode
         Panel(title: modeTitle(mode), systemImage: mode == .auto ? "arrow.triangle.2.circlepath" : (mode == .recommend ? "lightbulb" : "hand.raised")) {
             Text("Now: \(coordinator.activePlan.summary)").font(.callout)
+            if mode == .auto {
+                HStack(spacing: 18) {
+                    ForEach(Device.allCases) { device in
+                        AutoSwitchToggle(device: device)
+                    }
+                    Spacer()
+                }
+            }
             if let better = coordinator.recommendedPlan {
                 HStack {
                     Text("Better: \(better.summary) – \(Format.usd(better.netUSDPerDay))/day")
