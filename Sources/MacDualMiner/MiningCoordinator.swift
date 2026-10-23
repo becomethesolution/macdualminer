@@ -16,6 +16,7 @@ final class MiningCoordinator {
     let profit = ProfitDataService()      // WhatToMine data for every coin
     let benchmarks = BenchmarkStore()
     let uselethInstaller = UselethInstaller()
+    let poolBalances = PoolBalanceService()
     let history = EarningsHistory()
     let hardware = HardwareInfo.current
 

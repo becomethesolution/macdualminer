@@ -28,8 +28,11 @@ struct DashboardView: View {
                     .frame(height: 300)
                 HStack(alignment: .top, spacing: 16) {
                     SwitchingBanner()
-                    PowerThermalPanel()
-                        .frame(maxWidth: 320)
+                    VStack(spacing: 16) {
+                        PowerThermalPanel()
+                        PoolBalancePanel()
+                    }
+                    .frame(maxWidth: 320)
                 }
             }
             .padding(20)
@@ -485,6 +488,62 @@ private struct PowerThermalPanel: View {
                 Label(problem, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(Theme.accent)
             }
         }
+    }
+}
+
+/// Unpaid balances at the pools this Mac mines to – proof the mining lands somewhere real.
+private struct PoolBalancePanel: View {
+    @Environment(MiningCoordinator.self) private var coordinator
+
+    var body: some View {
+        let service = coordinator.poolBalances
+        let shown = service.balances.filter { $0.amount > 0 }
+        Panel(title: "Pool balance", systemImage: "tray.and.arrow.down.fill") {
+            if shown.isEmpty {
+                Text(service.lastUpdated == nil ? "Checking the pools…" : "Nothing waiting at the pools yet. Balances appear here once a pool credits your mining.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            ForEach(shown) { b in
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack {
+                        Text(b.pool).foregroundStyle(.secondary)
+                        Spacer()
+                        Text(Format.coins(b.amount, ticker: b.coinTag)).monospacedDigit().textSelection(.enabled)
+                    }
+                    if let threshold = b.threshold, threshold > 0 {
+                        ProgressView(value: min(1, b.amount / threshold))
+                            .tint(Theme.profit)
+                        HStack {
+                            Text("Pays out at \(Format.coins(threshold, ticker: b.coinTag))")
+                            Spacer()
+                            if let usd = usdValue(b) { Text("≈ \(Format.usd(usd))") }
+                        }
+                        .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .help("Unpaid balance at \(b.pool) for \(b.address)")
+            }
+            if let problem = service.problem {
+                Label(problem, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(Theme.accent)
+            }
+        }
+        .task(id: payoutSignature) {
+            // Re-read every 10 minutes, and right away when a payout address or pool changes.
+            while !Task.isCancelled {
+                await service.refresh(settings: coordinator.settings)
+                try? await Task.sleep(for: .seconds(600))
+            }
+        }
+    }
+
+    private var payoutSignature: String {
+        PoolBalanceService.targets(for: coordinator.settings).map { "\($0.kind)|\($0.coinTag)|\($0.address)" }.joined(separator: ",")
+    }
+
+    private func usdValue(_ b: PoolBalance) -> Double? {
+        guard let btc = coordinator.profit.btcUSD,
+              let rate = coordinator.profit.markets.values.first(where: { $0.tag == b.coinTag })?.exchangeRateBTC else { return nil }
+        return b.amount * rate * btc
     }
 }
 
