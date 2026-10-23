@@ -2,9 +2,10 @@ MacDualMiner is a free, open-source **macOS crypto miner** for Apple Silicon Mac
 
 ## What's new in 0.4.5
 
-- **Clear answer when nothing is profitable.** In auto mode, if every coin would cost more in electricity than it earns, pressing Start now explains why nothing is mining instead of sitting there silently. It shows the least costly option and offers **Keep Waiting** (starts by itself when a coin turns profitable), **Mine … Anyway** (until you press Stop) or **Add a Wallet…** when a profitable coin only needs a wallet. The device rows now say "Waiting – nothing profitable at $x/kWh".
-- **Chip and battery temperature** under Power & Thermals on the Dashboard, in °F or °C (Settings › General › Units; defaults to your region).
-- **Mining at your own risk.** A short notice is shown once before you first start mining: MacDualMiner comes without warranty, and sustained mining adds heat and wear, especially to laptop batteries. The same note is in the About box, with tips in Settings › Rules.
+- **Start always mines.** Start All Miners now starts mining right away, even when nothing is profitable at your electricity price: auto mode picks the least costly coin. A note under the CPU or GPU row says so ("As of current calculations, … won't be profitable at $x/kWh – about −$y/day") and points out any coin that would pay if you add a wallet. No pop-ups. If you'd rather keep a device idle until a coin is profitable, turn on Settings › Switching › *Keep a started device idle when every coin on it would lose money*.
+- **Start and stop the CPU and GPU separately.** Each device row on the Dashboard has its own Start/Stop button. The main button is now **Start All Miners / Stop All Miners**.
+- **Chip and battery temperature** under Power & Thermals, in °F or °C (Settings › General › Units; defaults to your region).
+- **Mining at your own risk.** A dismissible notice on the Dashboard explains that MacDualMiner comes without warranty and that sustained mining adds heat and wear, especially to laptop batteries. The same note is in the About box, with tips in Settings › Rules.
 
 ## Also in 0.4.4
 

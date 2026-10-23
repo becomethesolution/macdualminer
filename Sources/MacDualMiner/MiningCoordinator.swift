@@ -19,7 +19,10 @@ final class MiningCoordinator {
     let history = EarningsHistory()
     let hardware = HardwareInfo.current
 
-    private(set) var wantsMining = false
+    /// Parts of the chip the user has started (Start All starts both; each device row has its own Start/Stop).
+    private(set) var wantedDevices: Set<Device> = []
+    var wantsMining: Bool { !wantedDevices.isEmpty }
+    func wants(_ device: Device) -> Bool { wantedDevices.contains(device) }
     private(set) var blockReasons: [Device: String] = [:]
     /// What the coordinator is trying to run right now.
     private(set) var activePlan = MiningPlan.empty
@@ -30,9 +33,6 @@ final class MiningCoordinator {
     private(set) var switchLog: [String] = []
     private(set) var benchmarkStatus: String?
     private(set) var benchmarkProgress: Double?
-    /// "Mine Anyway": an option the user chose to run even though it loses money. Cleared on Stop, or as
-    /// soon as a profitable coin is available for the same part of the chip.
-    private(set) var acceptedLossOption: MiningOption?
 
     @ObservationIgnored private var loop: Task<Void, Never>?
     @ObservationIgnored private var benchmarkTask: Task<Void, Never>?
@@ -74,39 +74,16 @@ final class MiningCoordinator {
         if store.settings.startMiningOnLaunch { start() }
     }
 
-    func start() { wantsMining = true; evaluate() }
-    func stop() { wantsMining = false; acceptedLossOption = nil; evaluate() }
-
-    /// Mine an option that loses money (auto mode would otherwise keep its part of the chip paused).
-    func mineAnyway(_ option: MiningOption) {
-        acceptedLossOption = option
-        let net = ranked.first { $0.option == option }?.netUSDPerDay ?? 0
-        log("Mining \(option.coinTag) on the \(option.engine.deviceLabel) anyway – about \(Format.usd(net))/day after electricity")
-        wantsMining = true
-        evaluate()
-    }
-
-    /// Why pressing Start in auto mode mined nothing: every ready coin loses money.
-    struct NothingProfitable {
-        var leastCostly: RankedOption
-        /// A coin that would make money but needs a wallet or pool first.
-        var needsSetup: RankedOption?
-    }
-
-    var nothingProfitable: NothingProfitable? {
-        let s = settings
-        guard wantsMining, s.switchingMode == .auto, s.pauseUnprofitable, acceptedLossOption == nil,
-              activePlan.options.isEmpty, !profit.markets.isEmpty, profit.btcUSD != nil else { return nil }
-        let rows = ranked
-        let ready = rows.filter { $0.isEligible && $0.devices.allSatisfy { d in d == .cpu ? s.cpuEnabled : s.gpuEnabled } }
-        guard let least = ready.max(by: { $0.netUSDPerDay < $1.netUSDPerDay }), least.netUSDPerDay <= 0 else { return nil }
-        let setup = rows.filter { row in
-            if case .needsSetup = row.status { return row.netUSDPerDay > 0 }
-            return false
-        }.max { $0.netUSDPerDay < $1.netUSDPerDay }
-        return NothingProfitable(leastCostly: least, needsSetup: setup)
-    }
+    /// Start All Miners.
+    func start() { wantedDevices = Set(Device.allCases); evaluate() }
+    /// Stop All Miners.
+    func stop() { wantedDevices = []; evaluate() }
     func toggle() { wantsMining ? stop() : start() }
+
+    /// Start or stop one part of the chip.
+    func start(_ device: Device) { wantedDevices.insert(device); lastSwitchCheck = nil; evaluate() }
+    func stop(_ device: Device) { wantedDevices.remove(device); lastSwitchCheck = nil; evaluate() }
+    func toggle(_ device: Device) { wants(device) ? stop(device) : start(device) }
 
     func shutdown() {
         loop?.cancel()
@@ -134,7 +111,10 @@ final class MiningCoordinator {
         if settings.switchingMode == .auto { store.settings.switchingMode = .manual }
         adopt(MiningPlan(options: options, netUSDPerDay: ProfitPlanner.value(of: options, in: ranked)),
               reason: "You chose \(option.label)")
-        if !wantsMining { start() }
+        if !option.engine.devices.isSubset(of: wantedDevices) {
+            wantedDevices.formUnion(option.engine.devices)
+            evaluate()
+        }
     }
 
     // MARK: - Profit check
@@ -149,7 +129,7 @@ final class MiningCoordinator {
                                                estimates: estimates, installed: installed))
     }
 
-    var bestPlan: MiningPlan { ProfitPlanner.bestPlan(ranked, skipUnprofitable: settings.pauseUnprofitable) }
+    var bestPlan: MiningPlan { ProfitPlanner.bestPlan(ranked, skipUnprofitable: settings.idleWhenUnprofitable) }
 
     /// Devices left idle because every ready coin on them loses money after electricity.
     private(set) var unprofitableDevices: Set<Device> = []
@@ -199,7 +179,7 @@ final class MiningCoordinator {
 
         // Work out each engine's job, then stop before start (GPU engines can't share the GPU).
         var wanted: [EngineKind: MiningJob] = [:]
-        for option in activePlan.options where wantsMining || benchmarkOption != nil {
+        for option in activePlan.options where option.engine.devices.isSubset(of: wantedDevices) || benchmarkOption != nil {
             guard s.isEngineEnabled(option.engine) || benchmarkOption == option,
                   option.engine.devices.allSatisfy({ blockReasons[$0] == nil }),
                   let job = s.job(for: option) else { continue }
@@ -260,23 +240,12 @@ final class MiningCoordinator {
             return current
         case .auto:
             guard !profit.markets.isEmpty, profit.btcUSD != nil else { return activePlan.options.isEmpty ? manualPlan() : activePlan }
-            let rankedNow = ranked
-            let skipLosses = s.pauseUnprofitable
+            // Plan only for the parts of the chip that are started (both while stopped, to show the plan).
+            let planDevices = wantedDevices.isEmpty ? Set(Device.allCases) : wantedDevices
+            let rankedNow = ranked.filter { $0.devices.isSubset(of: planDevices) }
+            let skipLosses = s.idleWhenUnprofitable
             let best = ProfitPlanner.bestPlan(rankedNow, skipUnprofitable: skipLosses)
             unprofitableDevices = skipLosses ? ProfitPlanner.losingDevices(rankedNow) : []
-            if let forced = acceptedLossOption {
-                let stillReady = rankedNow.first(where: { $0.option == forced })?.isEligible ?? false
-                let profitableThere = best.options.contains { !$0.engine.devices.isDisjoint(with: forced.engine.devices) }
-                if stillReady && !profitableThere {
-                    var options = best.options.filter { $0.engine.devices.isDisjoint(with: forced.engine.devices) }
-                    options.append(forced)
-                    unprofitableDevices.subtract(forced.engine.devices)
-                    recommendedPlan = nil
-                    return MiningPlan(options: options, netUSDPerDay: ProfitPlanner.value(of: options, in: rankedNow))
-                }
-                if profitableThere { log("A profitable coin is available again – back to normal auto-switching") }
-                acceptedLossOption = nil
-            }
             // A running coin that now loses money is dropped straight away – no margin or minimum run time.
             let currentEligible = !activePlan.options.isEmpty && activePlan.options.allSatisfy { o in
                 guard let row = rankedNow.first(where: { $0.option == o }), row.isEligible else { return false }
@@ -290,6 +259,14 @@ final class MiningCoordinator {
                 recommendedPlan = nil
                 if best.options.isEmpty { return skipLosses ? .empty : manualPlan() }
                 return best
+            }
+            // A part of the chip that was just started gets its best coin right away, without waiting for the
+            // next switch check or the minimum run time of what's already mining.
+            let uncovered = planDevices.filter { activePlan.option(on: $0) == nil }
+            let additions = best.options.filter { $0.engine.devices.isSubset(of: uncovered) }
+            if !additions.isEmpty {
+                let options = activePlan.options + additions
+                return MiningPlan(options: options, netUSDPerDay: ProfitPlanner.value(of: options, in: rankedNow))
             }
             let currentNet = ProfitPlanner.value(of: activePlan.options, in: rankedNow)
             let better = ProfitPlanner.shouldSwitch(currentNet: currentNet, bestNet: best.netUSDPerDay, marginPercent: s.switchMarginPercent)
@@ -311,7 +288,7 @@ final class MiningCoordinator {
     private func betterPlan(than current: MiningPlan) -> MiningPlan? {
         guard !profit.markets.isEmpty else { return nil }
         let rankedNow = ranked
-        let best = ProfitPlanner.bestPlan(rankedNow, skipUnprofitable: settings.pauseUnprofitable)
+        let best = ProfitPlanner.bestPlan(rankedNow, skipUnprofitable: settings.idleWhenUnprofitable)
         guard !best.options.isEmpty, best.options != current.options else { return nil }
         let currentNet = ProfitPlanner.value(of: current.options, in: rankedNow)
         return ProfitPlanner.shouldSwitch(currentNet: currentNet, bestNet: best.netUSDPerDay,
@@ -345,11 +322,11 @@ final class MiningCoordinator {
             }
             if activePlan.option(on: device) == nil {
                 reasons[device] = unprofitableDevices.contains(device) && s.switchingMode == .auto
-                    ? "Waiting – nothing profitable at \(Format.usd(s.electricityUSDPerKWh))/kWh"
+                    ? "Idle – every coin loses money at \(Format.usd(s.electricityUSDPerKWh))/kWh"
                     : "No coin ready for the \(device.label)"
                 continue
             }
-            guard wantsMining, benchmarkOption == nil else { continue }
+            guard wants(device), benchmarkOption == nil else { continue }
             if s.pauseOnBattery && system.onBattery { reasons[device] = "Paused – running on battery" }
             else if s.pauseOnThermalPressure && (system.thermalState == .serious || system.thermalState == .critical) {
                 reasons[device] = "Paused – thermal pressure \(system.thermalLabel.lowercased())"
@@ -442,7 +419,7 @@ final class MiningCoordinator {
             benchmarkStatus = "Nothing to benchmark – add a wallet or Kryptex account for at least one coin"
             return
         }
-        let resume = wantsMining
+        let resume = wantedDevices
         benchmarkTask = Task { [weak self] in
             guard let self else { return }
             for (index, option) in queue.enumerated() {
@@ -454,7 +431,7 @@ final class MiningCoordinator {
             self.benchmarkProgress = nil
             self.benchmarkStatus = Task.isCancelled ? "Benchmark cancelled" : "Benchmark finished – profit check updated"
             self.benchmarkTask = nil
-            self.wantsMining = resume
+            self.wantedDevices = resume
             self.lastSwitchCheck = nil   // re-plan right away with the new numbers
             self.evaluate()
         }

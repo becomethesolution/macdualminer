@@ -99,8 +99,12 @@ struct MinerSettings: Codable, Equatable {
 
     // MARK: Switching
     var switchingMode: SwitchingMode = .auto
-    /// Auto mode: leave a device idle when every coin it could mine loses money after electricity.
+    /// 0.4.4 and earlier: "leave a device idle when every coin loses money", on by default. Kept so old
+    /// settings files still decode; replaced by `idleWhenUnprofitable`.
     var pauseUnprofitable = true
+    /// Auto mode: keep a started device idle when every coin it could mine loses money after electricity.
+    /// Off by default – Start always mines, picking the least costly coin when nothing is profitable.
+    var idleWhenUnprofitable = false
     var manualCPUOption = "xmrig:XMR"
     var manualGPUOption = "kawpow:RVN"
     var switchCheckMinutes = 15

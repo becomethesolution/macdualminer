@@ -12,6 +12,9 @@ struct DashboardView: View {
                 if let update = updates.available, !uiState.updateDismissed {
                     UpdateBanner(release: update)
                 }
+                if coordinator.settings.acceptedDisclaimerVersion < Disclaimer.version {
+                    DisclaimerBanner()
+                }
                 MachineHeader()
                 HeroPanel()
                 Panel(title: "Devices", systemImage: "cpu") {
@@ -94,7 +97,7 @@ private struct HeroPanel: View {
                     }
                     Text(mining
                          ? "Gross \(Format.usd(e.gross(.day))) · Electricity −\(Format.usd(e.power(.day))) · ≈ \(Format.usd(e.net(.month))) / month"
-                         : "Press Start to mine \(coordinator.activePlan.summary)")
+                         : "Plan: \(coordinator.activePlan.summary). Start all miners, or start the CPU or GPU on its own below.")
                         .font(.callout).foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
@@ -127,13 +130,11 @@ private struct HeroPanel: View {
 /// Large round Start/Stop control.
 private struct BigStartButton: View {
     @Environment(MiningCoordinator.self) private var coordinator
-    @Environment(UIState.self) private var uiState
-    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         let on = coordinator.wantsMining
         Button {
-            StartFlow.toggle(coordinator, ui: uiState, openSettings: { openSettings() })
+            coordinator.toggle()
         } label: {
             ZStack {
                 Circle()
@@ -142,7 +143,8 @@ private struct BigStartButton: View {
                 Circle().strokeBorder(on ? Theme.loss : Theme.accent.opacity(0.6), lineWidth: 3)
                 VStack(spacing: 4) {
                     Image(systemName: on ? "stop.fill" : "play.fill").font(.system(size: 30, weight: .bold))
-                    Text(on ? "STOP" : "START").font(.caption.weight(.heavy)).tracking(1)
+                    Text(on ? "STOP ALL" : "START ALL").font(.caption.weight(.heavy)).tracking(1)
+                    Text("MINERS").font(.caption2.weight(.bold)).tracking(1).opacity(0.85)
                 }
                 .foregroundStyle(on ? Theme.loss : .white)
             }
@@ -150,7 +152,7 @@ private struct BigStartButton: View {
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .help(on ? "Stop mining (⇧⌘M)" : "Start mining (⇧⌘M)")
+        .help(on ? "Stop all miners (⇧⌘M)" : "Start all miners (⇧⌘M)")
     }
 }
 
@@ -158,6 +160,8 @@ private struct BigStartButton: View {
 
 private struct DeviceRow: View {
     @Environment(MiningCoordinator.self) private var coordinator
+    @Environment(UIState.self) private var uiState
+    @Environment(\.openSettings) private var openSettings
     let device: Device
 
     var body: some View {
@@ -170,6 +174,7 @@ private struct DeviceRow: View {
         let hashrate = running.map { $0.hashrate(for: device) > 0 ? $0.hashrate(for: device) : ($0.displayHashrate ?? 0) }
         let watts = running.flatMap { coordinator.allocatedWatts[$0.kind] }
 
+        VStack(alignment: .leading, spacing: 6) {
         HStack(alignment: .center, spacing: 16) {
             Image(systemName: device == .cpu ? "cpu" : "square.stack.3d.up.fill")
                 .font(.title2)
@@ -202,17 +207,62 @@ private struct DeviceRow: View {
 
             PowerLevelControl(device: device, compact: true)
                 .frame(minWidth: 160)
-            Toggle("", isOn: enabled)
-                .toggleStyle(.switch)
-                .labelsHidden()
-                .help("Mine on the \(device.label)")
+            let started = coordinator.wants(device)
+            Button {
+                coordinator.toggle(device)
+            } label: {
+                Label(started ? "Stop" : "Start", systemImage: started ? "stop.fill" : "play.fill")
+                    .frame(minWidth: 52)
+            }
+            .buttonStyle(.bordered)
+            .tint(started ? Theme.loss : Theme.profit)
+            .disabled(!enabled.wrappedValue && !started)
+            .help(enabled.wrappedValue ? (started ? "Stop mining on the \(device.label)" : "Start mining on the \(device.label) only")
+                                       : "\(device.label) mining is turned off in Settings › Engines")
+        }
+        lossNote(option: option)
         }
         .padding(.vertical, 4)
     }
 
+    /// Shown under a started device that is mining at a loss – mining continues, this just says so.
+    @ViewBuilder
+    private func lossNote(option: MiningOption?) -> some View {
+        let s = coordinator.settings
+        if coordinator.wants(device), let option,
+           let row = coordinator.ranked.first(where: { $0.option == option }), row.netUSDPerDay < 0 {
+            let better = coordinator.ranked.filter { r in
+                guard r.devices.contains(device), r.netUSDPerDay > 0 else { return false }
+                if case .needsSetup = r.status { return true }
+                return false
+            }.max { $0.netUSDPerDay < $1.netUSDPerDay }
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: "info.circle")
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("As of current calculations, \(row.coinName) on the \(device.label) won't be profitable at \(Format.usd(s.electricityUSDPerKWh))/kWh – about \(Format.usd(row.netUSDPerDay))/day after electricity."
+                         + (s.switchingMode == .auto ? " MacDualMiner switches to a profitable coin automatically if one appears." : ""))
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let better {
+                        HStack(spacing: 6) {
+                            Text("\(better.coinName) would earn about \(Format.usd(better.netUSDPerDay))/day – \(better.status.label.lowercased()).")
+                            Button("Add a wallet") {
+                                uiState.settingsTab = .coins
+                                openSettings()
+                            }
+                            .buttonStyle(.link)
+                        }
+                    }
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(Theme.accent)
+            .padding(.leading, 60)
+        }
+    }
+
     @ViewBuilder
     private func statusPill(running: (any MiningEngine)?) -> some View {
-        if let reason = coordinator.blockReasons[device], coordinator.wantsMining || reason.contains("wallet") || reason.contains("installed") {
+        if let reason = coordinator.blockReasons[device], coordinator.wants(device) || reason.contains("wallet") || reason.contains("installed") {
             StatusPill(text: reason, color: Theme.accent).lineLimit(1).help(reason)
         } else if let running, running.isMining {
             StatusPill(text: running.statusText == "Mining" || running.statusText == "Running" ? "Mining" : running.statusText, color: Theme.profit)

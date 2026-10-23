@@ -9,7 +9,7 @@ struct ProfitCheckView: View {
     var body: some View {
         let ranked = coordinator.ranked
         let rows = uiState.showIneligibleCoins ? ranked : ranked.filter(\.isEligible)
-        let best = ProfitPlanner.bestPlan(ranked, skipUnprofitable: coordinator.settings.pauseUnprofitable)
+        let best = ProfitPlanner.bestPlan(ranked, skipUnprofitable: coordinator.settings.idleWhenUnprofitable)
         // A plain ScrollView of rows rather than SwiftUI's Table: Table's selection binding fed back into
         // shared state on every update and blanked the whole window in 0.3.0.
         ScrollView {
@@ -34,7 +34,7 @@ struct ProfitCheckView: View {
     private func summary(best: MiningPlan) -> some View {
         HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Most profitable right now").font(.caption).foregroundStyle(.secondary)
+                Text("Best option right now").font(.caption).foregroundStyle(.secondary)
                 Text(best.summary).font(.headline)
                 Text("\(Format.usd(best.netUSDPerDay))/day net · \(Format.usd(best.netUSDPerDay * 30.4375))/month")
                     .font(.callout).foregroundStyle(best.netUSDPerDay >= 0 ? Color.green : Color.red)
@@ -187,7 +187,7 @@ private struct ProfitRow: View {
                 if running {
                     Text("Mining").font(.caption.weight(.semibold)).foregroundStyle(Theme.profit)
                 } else {
-                    Button("Mine") { StartFlow.mine(r.option, coordinator: coordinator) }
+                    Button("Mine") { coordinator.mine(r.option) }
                         .disabled(!r.isEligible)
                 }
             }
