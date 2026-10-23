@@ -92,12 +92,6 @@ private struct GeneralSettings: View {
 private struct CoinsSettings: View {
     @Environment(MiningCoordinator.self) private var coordinator
     @Environment(UIState.self) private var uiState
-    @State private var filter: CoinFilter = .all
-
-    enum CoinFilter: String, CaseIterable, Identifiable {
-        case all = "All", ready = "Ready", needsSetup = "Needs setup"
-        var id: String { rawValue }
-    }
 
     static let payoutsID = "__payouts"
 
@@ -106,7 +100,7 @@ private struct CoinsSettings: View {
         let s = coordinator.settings
         let coins = CoinCatalog.coins.filter { coin in
             let ready = isReady(coin, s)
-            switch filter {
+            switch uiState.coinFilter {
             case .all: return true
             case .ready: return ready
             case .needsSetup: return !ready
@@ -119,7 +113,7 @@ private struct CoinsSettings: View {
 
         HStack(spacing: 0) {
             VStack(spacing: 6) {
-                Picker("Show", selection: $filter) {
+                Picker("Show", selection: $ui.coinFilter) {
                     ForEach(CoinFilter.allCases) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
@@ -147,9 +141,9 @@ private struct CoinsSettings: View {
         }
         // A coin picked from elsewhere (e.g. the Dashboard) must be visible in the list.
         .onChange(of: ui.selectedCoin) { _, tag in
-            if let tag, tag != Self.payoutsID, !coins.contains(where: { $0.tag == tag }) { filter = .all }
+            if let tag, tag != Self.payoutsID, !coins.contains(where: { $0.tag == tag }) { uiState.coinFilter = .all }
         }
-        .onAppear { filter = .all }
+        .onAppear { uiState.coinFilter = .all }
     }
 
     private func isReady(_ coin: CoinSpec, _ s: MinerSettings) -> Bool {

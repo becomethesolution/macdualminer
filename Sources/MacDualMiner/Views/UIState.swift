@@ -21,6 +21,13 @@ final class UIState {
     var settingsTab: SettingsTab = .general
     /// Coin selected in Settings › Coins & Wallets (nil = Payouts & worker).
     var selectedCoin: String?
+    /// Filter above the Coins & Wallets list.
+    var coinFilter: CoinFilter = .all
+}
+
+enum CoinFilter: String, CaseIterable, Identifiable {
+    case all = "All", ready = "Ready", needsSetup = "Needs setup"
+    var id: String { rawValue }
 }
 
 enum SettingsTab: Hashable {
